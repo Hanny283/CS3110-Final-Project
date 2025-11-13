@@ -1,0 +1,3 @@
+(library
+ (name cs3110_final_project)
+ (libraries lablgtk3 cairo2))

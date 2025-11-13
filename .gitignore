@@ -1,0 +1,45 @@
+# OCaml/Dune build artifacts
+_build/
+*.install
+*.merlin
+.merlin
+
+# OCaml compiled files
+*.cmo
+*.cmi
+*.cma
+*.cmx
+*.cmxa
+*.cmxs
+*.cmt
+*.cmti
+*.annot
+*.opt
+*.byte
+*.native
+
+# OPAM
+_opam/
+*.opam.locked
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.bak
+
+# OS-specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+

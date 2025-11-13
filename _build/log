@@ -1,0 +1,16 @@
+# dune exec bin/main.exe
+# OCAMLPARAM: unset
+# Shared cache: enabled-except-user-rules
+# Shared cache location: /Users/hanselcarmona/.cache/dune/db
+# Workspace root: /Users/hanselcarmona/Documents/3110/CS3110-Final-Project
+# Auto-detected concurrency: 10
+# Dune context:
+#  { name = "default"
+#  ; kind = "default"
+#  ; profile = Dev
+#  ; merlin = true
+#  ; fdo_target_exe = None
+#  ; build_dir = In_build_dir "default"
+#  ; instrument_with = []
+#  }
+$ /Users/hanselcarmona/.opam/cs3110-2025fa/bin/ocamlc.opt -config > /var/folders/5z/m9mrz2t54cxfv73prxjqyv0h0000gn/T/dune_c99ad1_output
