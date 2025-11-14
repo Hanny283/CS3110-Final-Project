@@ -1,4 +1,4 @@
-# dune exec bin/main.exe
+# dune exec test/test_intersection.exe
 # OCAMLPARAM: unset
 # Shared cache: enabled-except-user-rules
 # Shared cache location: /Users/hanselcarmona/.cache/dune/db
@@ -13,4 +13,4 @@
 #  ; build_dir = In_build_dir "default"
 #  ; instrument_with = []
 #  }
-$ /Users/hanselcarmona/.opam/cs3110-2025fa/bin/ocamlc.opt -config > /var/folders/5z/m9mrz2t54cxfv73prxjqyv0h0000gn/T/dune_c99ad1_output
+$ /Users/hanselcarmona/.opam/cs3110-2025fa/bin/ocamlc.opt -config > /var/folders/5z/m9mrz2t54cxfv73prxjqyv0h0000gn/T/dune_91b47a_output
