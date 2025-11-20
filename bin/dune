@@ -1,4 +1,4 @@
 (executable
  (name main)
- (libraries cs3110_final_project lablgtk3 cairo2))
+(libraries cs3110_final_project lablgtk3 cairo2))
 
