@@ -2,6 +2,9 @@ open Cs3110_final_project.Tool_types
 open Cs3110_final_project.Road
 open Cs3110_final_project.Intersection (* so we can call Road.draw *)
 
+(* Type to represent a drawn object *)
+type drawn_object = { tool_type : tool_type; x : int; y : int; angle : float }
+
 let () =
   (* Initialize GTK *)
   let _ = GMain.init () in
@@ -22,6 +25,14 @@ let () =
   let _label = GMisc.label ~text:"Drawing Tools" ~packing:toolbar#add () in
 
   let current_tool = ref None in
+  let objects = ref [] in
+  (* List of drawn objects *)
+  let selected_object = ref None in
+  (* Currently selected object index *)
+  let is_moving = ref false in
+  (* Whether we're in move mode *)
+  let drag_offset = ref (0, 0) in
+  (* Offset for dragging *)
   let add_button label callback =
     let b = GButton.button ~label ~packing:toolbar#add () in
     ignore (b#connect#clicked ~callback);
@@ -44,6 +55,14 @@ let () =
   ignore
     (free_button#connect#clicked ~callback:(fun () -> current_tool := None));
 
+  (* Move button *)
+  let _ =
+    add_button "Move" (fun () ->
+        current_tool := None;
+        is_moving := true;
+        selected_object := None)
+  in
+
   (* Create the drawing area *)
   let drawing_area =
     GMisc.drawing_area ~packing:(vbox#pack ~expand:true ~fill:true) ()
@@ -64,6 +83,34 @@ let () =
     s
   in
 
+  (* Delete button *)
+  let _ =
+    add_button "Delete" (fun () ->
+        match !selected_object with
+        | Some idx -> (
+            objects := List.filteri (fun i _ -> i <> idx) !objects;
+            selected_object := None;
+            (* Redraw *)
+            match !surface with
+            | Some s ->
+                let cr = Cairo.create s in
+                Cairo.set_source_rgb cr 1.0 1.0 1.0;
+                Cairo.paint cr;
+                List.iter
+                  (fun obj ->
+                    match obj.obj_type with
+                    | ROAD ->
+                        Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                          (Road.get_settings ())
+                    | INTERSECTION ->
+                        Intersection.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                          (Intersection.get_settings ())
+                    | _ -> ())
+                  !objects;
+                drawing_area#misc#queue_draw ()
+            | None -> ())
+        | None -> ())
+  in
   (* Draw handler - called when the widget needs to be redrawn *)
   let draw_callback cr =
     match !surface with
@@ -93,7 +140,7 @@ let () =
           let x = int_of_float x_f in
           let y = int_of_float y_f in
 
-          begin match !current_tool with
+          (match !current_tool with
           | Some ROAD ->
               (* Draw road *)
               let settings = Road.get_settings () in
@@ -107,8 +154,7 @@ let () =
               Cairo.arc cr (float x) (float y) ~r:5.0 ~a1:0.0
                 ~a2:(2.0 *. Float.pi);
               Cairo.fill cr
-          | _ -> failwith "Not ready"
-          end;
+          | _ -> failwith "Not ready");
 
           drawing_area#misc#queue_draw ();
           true
