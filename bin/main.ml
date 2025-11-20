@@ -3,7 +3,7 @@ open Cs3110_final_project.Road
 open Cs3110_final_project.Intersection (* so we can call Road.draw *)
 
 (* Type to represent a drawn object *)
-type drawn_object = { tool_type : tool_type; x : int; y : int; angle : float }
+type drawn_object = { tool_type : tool; x : int; y : int; angle : float }
 
 let () =
   (* Initialize GTK *)
@@ -31,7 +31,6 @@ let () =
   (* Currently selected object index *)
   let is_moving = ref false in
   (* Whether we're in move mode *)
-  let drag_offset = ref (0, 0) in
   (* Offset for dragging *)
   let add_button label callback =
     let b = GButton.button ~label ~packing:toolbar#add () in
@@ -44,11 +43,6 @@ let () =
   let _ =
     add_button "Intersection" (fun () -> current_tool := Some INTERSECTION)
   in
-
-  (* Road button *)
-  let road_button = GButton.button ~label:"Road" ~packing:toolbar#add () in
-  ignore
-    (road_button#connect#clicked ~callback:(fun () -> current_tool := Some ROAD));
 
   (* Freehand button *)
   let free_button = GButton.button ~label:"Freehand" ~packing:toolbar#add () in
@@ -98,7 +92,7 @@ let () =
                 Cairo.paint cr;
                 List.iter
                   (fun obj ->
-                    match obj.obj_type with
+                    match obj.tool_type with
                     | ROAD ->
                         Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                           (Road.get_settings ())
@@ -144,10 +138,15 @@ let () =
           | Some ROAD ->
               (* Draw road *)
               let settings = Road.get_settings () in
-              Road.draw cr ~x ~y ~angle:0.0 settings
+              Road.draw cr ~x ~y ~angle:0.0 settings;
+              objects := { tool_type = ROAD; x; y; angle = 0.0 } :: !objects;
+              selected_object := Some 0
           | Some INTERSECTION ->
               let settings = Intersection.get_settings () in
-              Intersection.draw cr ~x ~y ~angle:0.0 settings
+              Intersection.draw cr ~x ~y ~angle:0.0 settings;
+              objects :=
+                { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects;
+              selected_object := Some 0
           | None ->
               (* Freehand circle *)
               Cairo.set_source_rgb cr 0.0 0.0 0.0;
