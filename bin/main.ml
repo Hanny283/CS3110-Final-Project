@@ -1,6 +1,7 @@
 open Cs3110_final_project.Tool_types
 open Cs3110_final_project.Road
-open Cs3110_final_project.Intersection (* so we can call Road.draw *)
+open Cs3110_final_project.Intersection
+open Cs3110_final_project.Building
 
 (* Type to represent a drawn object *)
 type drawn_object = { tool_type : tool; x : int; y : int; angle : float }
@@ -31,7 +32,12 @@ let () =
   (* Currently selected object index *)
   let is_moving = ref false in
   (* Whether we're in move mode *)
-  (* Offset for dragging *)
+  let is_rotating = ref false in
+  (* Whether we're rotating an object *)
+  let drag_offset = ref None in
+  (* Offset from object center when dragging *)
+  let button_pressed = ref false in
+  (* Whether mouse button is currently pressed *)
   let add_button label callback =
     let b = GButton.button ~label ~packing:toolbar#add () in
     ignore (b#connect#clicked ~callback);
@@ -42,6 +48,11 @@ let () =
 
   let _ =
     add_button "Intersection" (fun () -> current_tool := Some INTERSECTION)
+  in
+
+  let _ =
+    add_button "Building" (fun () ->
+        current_tool := Some (BUILDING (HOUSE { time_in = 8; time_out = 18 })))
   in
 
   (* Move button *)
@@ -72,6 +83,53 @@ let () =
     s
   in
 
+  (* Helper function to redraw all objects *)
+  let redraw_all () =
+    match !surface with
+    | Some s ->
+        let cr = Cairo.create s in
+        Cairo.set_source_rgb cr 1.0 1.0 1.0;
+        Cairo.paint cr;
+        List.iter
+          (fun obj ->
+            match obj.tool_type with
+            | ROAD ->
+                Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  (Road.get_settings ())
+            | INTERSECTION ->
+                Intersection.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  (Intersection.get_settings ())
+            | BUILDING _ ->
+                Building.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  (Building.get_settings ()))
+          !objects;
+        (* Draw selection highlights and rotate buttons *)
+        (match !selected_object with
+        | Some idx -> (
+            try
+              let obj = List.nth !objects idx in
+              match obj.tool_type with
+              | ROAD ->
+                  Road.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                    (Road.get_settings ());
+                  Road.draw_rotate_button cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                    (Road.get_settings ())
+              | INTERSECTION ->
+                  Intersection.draw_selection cr ~x:obj.x ~y:obj.y
+                    ~angle:obj.angle (Intersection.get_settings ());
+                  Intersection.draw_rotate_button cr ~x:obj.x ~y:obj.y
+                    ~angle:obj.angle (Intersection.get_settings ())
+              | BUILDING _ ->
+                  Building.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                    (Building.get_settings ());
+                  Building.draw_rotate_button cr ~x:obj.x ~y:obj.y
+                    ~angle:obj.angle (Building.get_settings ())
+            with _ -> ())
+        | None -> ());
+        drawing_area#misc#queue_draw ()
+    | None -> ()
+  in
+
   (* Delete button *)
   let _ =
     add_button "Delete" (fun () ->
@@ -79,25 +137,7 @@ let () =
         | Some idx -> (
             objects := List.filteri (fun i _ -> i <> idx) !objects;
             selected_object := None;
-            (* Redraw *)
-            match !surface with
-            | Some s ->
-                let cr = Cairo.create s in
-                Cairo.set_source_rgb cr 1.0 1.0 1.0;
-                Cairo.paint cr;
-                List.iter
-                  (fun obj ->
-                    match obj.tool_type with
-                    | ROAD ->
-                        Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                          (Road.get_settings ())
-                    | INTERSECTION ->
-                        Intersection.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                          (Intersection.get_settings ())
-                    | _ -> ())
-                  !objects;
-                drawing_area#misc#queue_draw ()
-            | None -> ())
+            redraw_all ())
         | None -> ())
   in
   (* Draw handler - called when the widget needs to be redrawn *)
@@ -117,61 +157,176 @@ let () =
     true
   in
 
-  (* Mouse button press handler - start drawing *)
+  (* Mouse button press handler - handle drawing, selection, and rotation *)
   let button_press_callback ev =
     let button = GdkEvent.Button.button ev in
-    if button = 1 then
-      match !surface with
-      | Some s ->
-          let cr = Cairo.create s in
-          let x_f = GdkEvent.Button.x ev in
-          let y_f = GdkEvent.Button.y ev in
-          let x = int_of_float x_f in
-          let y = int_of_float y_f in
+    if button = 1 then (
+      button_pressed := true;
+      let x_f = GdkEvent.Button.x ev in
+      let y_f = GdkEvent.Button.y ev in
+      let x = int_of_float x_f in
+      let y = int_of_float y_f in
 
-          (match !current_tool with
-          | Some ROAD ->
-              (* Draw road *)
-              let settings = Road.get_settings () in
-              Road.draw cr ~x ~y ~angle:0.0 settings;
+      match !current_tool with
+      | Some tool_type -> (
+          (* Drawing mode - place new object *)
+          (match tool_type with
+          | ROAD ->
               objects := { tool_type = ROAD; x; y; angle = 0.0 } :: !objects;
               selected_object := Some 0
-          | Some INTERSECTION ->
-              let settings = Intersection.get_settings () in
-              Intersection.draw cr ~x ~y ~angle:0.0 settings;
+          | INTERSECTION ->
               objects :=
                 { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects;
               selected_object := Some 0
-          | None -> () (* No tool selected - do nothing *)
-          | _ -> failwith "Not ready");
+          | BUILDING _ ->
+              objects := { tool_type; x; y; angle = 0.0 } :: !objects;
+              selected_object := Some 0);
+          redraw_all ();
+          true)
+      | None -> (
+          (* Selection/move mode - check for clicks on objects *)
+          let clicked_object = ref None in
+          let clicked_rotate_button = ref false in
 
-          drawing_area#misc#queue_draw ();
-          true
-      | None -> false
+          (* Check each object (from front to back) *)
+          List.iteri
+            (fun idx obj ->
+              if !clicked_object = None then (
+                (* Check if clicked on rotate button *)
+                if !selected_object = Some idx then (
+                  match obj.tool_type with
+                  | ROAD ->
+                      if Road.point_on_rotate_button ~x:obj.x ~y:obj.y
+                           ~angle:obj.angle ~px:x_f ~py:y_f
+                           (Road.get_settings ())
+                      then (
+                        clicked_object := Some idx;
+                        clicked_rotate_button := true;
+                        is_rotating := true)
+                  | INTERSECTION ->
+                      if Intersection.point_on_rotate_button ~x:obj.x ~y:obj.y
+                           ~angle:obj.angle ~px:x_f ~py:y_f
+                           (Intersection.get_settings ())
+                      then (
+                        clicked_object := Some idx;
+                        clicked_rotate_button := true;
+                        is_rotating := true)
+                  | BUILDING _ ->
+                      if Building.point_on_rotate_button ~x:obj.x ~y:obj.y
+                           ~angle:obj.angle ~px:x_f ~py:y_f
+                           (Building.get_settings ())
+                      then (
+                        clicked_object := Some idx;
+                        clicked_rotate_button := true;
+                        is_rotating := true));
+
+                (* Check if clicked on object itself *)
+                if !clicked_object = None then (
+                  match obj.tool_type with
+                  | ROAD ->
+                      if Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                           (Road.get_settings ())
+                      then (
+                        clicked_object := Some idx;
+                        clicked_rotate_button := false;
+                        is_rotating := false;
+                        let fx = float_of_int obj.x in
+                        let fy = float_of_int obj.y in
+                        drag_offset := Some (x_f -. fx, y_f -. fy))
+                  | INTERSECTION ->
+                      if Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
+                           ~py:y_f (Intersection.get_settings ())
+                      then (
+                        clicked_object := Some idx;
+                        clicked_rotate_button := false;
+                        is_rotating := false;
+                        let fx = float_of_int obj.x in
+                        let fy = float_of_int obj.y in
+                        drag_offset := Some (x_f -. fx, y_f -. fy))
+                  | BUILDING _ ->
+                      if Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                           (Building.get_settings ())
+                      then (
+                        clicked_object := Some idx;
+                        clicked_rotate_button := false;
+                        is_rotating := false;
+                        let fx = float_of_int obj.x in
+                        let fy = float_of_int obj.y in
+                        drag_offset := Some (x_f -. fx, y_f -. fy)))))
+            !objects;
+
+          (* Update selection *)
+          if !clicked_object <> None then
+            selected_object := !clicked_object
+          else (
+            (* Clicked on empty space - deselect *)
+            selected_object := None;
+            is_rotating := false;
+            drag_offset := None);
+
+          redraw_all ();
+          true))
     else false
   in
 
-  (* Mouse motion handler - draw while dragging *)
+  (* Mouse motion handler - handle dragging and rotation *)
   let motion_callback ev =
-    let state = GdkEvent.Motion.state ev in
-    if Gdk.Convert.test_modifier `BUTTON1 state then
-      match !surface with
-      | Some s -> (
-          let cr = Cairo.create s in
-          let x = GdkEvent.Motion.x ev in
-          let y = GdkEvent.Motion.y ev in
+    if !button_pressed && !selected_object <> None then (
+      let x = GdkEvent.Motion.x ev in
+      let y = GdkEvent.Motion.y ev in
 
-          match !current_tool with
-          | None -> false (* No tool selected - do nothing *)
-          | Some ROAD ->
-              Road.draw cr ~x:(int_of_float x) ~y:(int_of_float y) ~angle:0.0
-                (Road.get_settings ());
-              drawing_area#misc#queue_draw ();
-              true
-          | Some INTERSECTION -> false (* not implemented yet *)
-          | Some (BUILDING _) -> false (* not implemented yet *))
-      | _ -> failwith "not ready"
+      let selected_idx =
+        match !selected_object with
+        | Some idx -> idx
+        | None -> assert false
+      in
+
+      try
+        let obj = List.nth !objects selected_idx in
+        let objects_list = !objects in
+
+        if !is_rotating then (
+          (* Rotating: calculate angle from center to mouse position *)
+          let cx = float_of_int obj.x in
+          let cy = float_of_int obj.y in
+          let new_angle =
+            match obj.tool_type with
+            | ROAD -> Road.calculate_rotation ~cx ~cy ~mx:x ~my:y
+            | INTERSECTION ->
+                Intersection.calculate_rotation ~cx ~cy ~mx:x ~my:y
+            | BUILDING _ ->
+                Building.calculate_rotation ~cx ~cy ~mx:x ~my:y
+          in
+          objects :=
+            List.mapi
+              (fun i o -> if i = selected_idx then { o with angle = new_angle } else o)
+              objects_list)
+        else (
+          (* Dragging: move object by mouse offset *)
+          match !drag_offset with
+          | Some (offset_x, offset_y) ->
+              let new_x = int_of_float (x -. offset_x) in
+              let new_y = int_of_float (y -. offset_y) in
+              objects :=
+                List.mapi
+                  (fun i o ->
+                    if i = selected_idx then { o with x = new_x; y = new_y }
+                    else o)
+                  objects_list
+          | None -> ());
+
+        redraw_all ();
+        true
+      with _ -> false)
     else false
+  in
+
+  (* Mouse button release handler *)
+  let button_release_callback _ev =
+    button_pressed := false;
+    drag_offset := None;
+    is_rotating := false;
+    false
   in
 
   (* Connect signals *)
@@ -180,10 +335,19 @@ let () =
   let _ =
     drawing_area#event#connect#button_press ~callback:button_press_callback
   in
+  let _ =
+    drawing_area#event#connect#button_release ~callback:button_release_callback
+  in
   let _ = drawing_area#event#connect#motion_notify ~callback:motion_callback in
 
   (* Set event mask to receive mouse events *)
-  drawing_area#event#add [ `BUTTON_PRESS; `POINTER_MOTION; `BUTTON1_MOTION ];
+  drawing_area#event#add
+    [
+      `BUTTON_PRESS;
+      `BUTTON_RELEASE;
+      `POINTER_MOTION;
+      `BUTTON1_MOTION;
+    ];
 
   (* Connect window destroy signal to quit the application *)
   let _ = window#connect#destroy ~callback:GMain.quit in
