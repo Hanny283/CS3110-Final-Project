@@ -44,11 +44,6 @@ let () =
     add_button "Intersection" (fun () -> current_tool := Some INTERSECTION)
   in
 
-  (* Freehand button *)
-  let free_button = GButton.button ~label:"Freehand" ~packing:toolbar#add () in
-  ignore
-    (free_button#connect#clicked ~callback:(fun () -> current_tool := None));
-
   (* Move button *)
   let _ =
     add_button "Move" (fun () ->
@@ -147,12 +142,7 @@ let () =
               objects :=
                 { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects;
               selected_object := Some 0
-          | None ->
-              (* Freehand circle *)
-              Cairo.set_source_rgb cr 0.0 0.0 0.0;
-              Cairo.arc cr (float x) (float y) ~r:5.0 ~a1:0.0
-                ~a2:(2.0 *. Float.pi);
-              Cairo.fill cr
+          | None -> () (* No tool selected - do nothing *)
           | _ -> failwith "Not ready");
 
           drawing_area#misc#queue_draw ();
@@ -172,12 +162,7 @@ let () =
           let y = GdkEvent.Motion.y ev in
 
           match !current_tool with
-          | None ->
-              Cairo.set_source_rgb cr 0.0 0.0 0.0;
-              Cairo.arc cr x y ~r:3.0 ~a1:0.0 ~a2:(2.0 *. Float.pi);
-              Cairo.fill cr;
-              drawing_area#misc#queue_draw ();
-              true
+          | None -> false (* No tool selected - do nothing *)
           | Some ROAD ->
               Road.draw cr ~x:(int_of_float x) ~y:(int_of_float y) ~angle:0.0
                 (Road.get_settings ());
