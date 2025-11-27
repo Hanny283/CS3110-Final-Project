@@ -32,6 +32,8 @@ let () =
   (* Currently selected object index *)
   let is_moving = ref false in
   (* Whether we're in move mode *)
+  let is_deleting = ref false in
+  (* Whether we're in delete mode *)
   let is_rotating = ref false in
   (* Whether we're rotating an object *)
   let drag_offset = ref None in
@@ -44,15 +46,23 @@ let () =
     b
   in
 
-  let _ = add_button "Road" (fun () -> current_tool := Some ROAD) in
+  let _ = add_button "Road" (fun () ->
+      current_tool := Some ROAD;
+      is_deleting := false;
+      is_moving := false) in
 
   let _ =
-    add_button "Intersection" (fun () -> current_tool := Some INTERSECTION)
+    add_button "Intersection" (fun () ->
+        current_tool := Some INTERSECTION;
+        is_deleting := false;
+        is_moving := false)
   in
 
   let _ =
     add_button "Building" (fun () ->
-        current_tool := Some (BUILDING (HOUSE { time_in = 8; time_out = 18 })))
+        current_tool := Some (BUILDING (HOUSE { time_in = 8; time_out = 18 }));
+        is_deleting := false;
+        is_moving := false)
   in
 
   (* Move button *)
@@ -60,6 +70,7 @@ let () =
     add_button "Move" (fun () ->
         current_tool := None;
         is_moving := true;
+        is_deleting := false;
         selected_object := None)
   in
 
@@ -133,12 +144,10 @@ let () =
   (* Delete button *)
   let _ =
     add_button "Delete" (fun () ->
-        match !selected_object with
-        | Some idx -> (
-            objects := List.filteri (fun i _ -> i <> idx) !objects;
-            selected_object := None;
-            redraw_all ())
-        | None -> ())
+        current_tool := None;
+        is_deleting := true;
+        is_moving := false;
+        selected_object := None)
   in
   (* Draw handler - called when the widget needs to be redrawn *)
   let draw_callback cr =
@@ -172,19 +181,47 @@ let () =
           (* Drawing mode - place new object *)
           (match tool_type with
           | ROAD ->
-              objects := { tool_type = ROAD; x; y; angle = 0.0 } :: !objects;
-              selected_object := Some 0
+              objects := { tool_type = ROAD; x; y; angle = 0.0 } :: !objects
           | INTERSECTION ->
               objects :=
-                { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects;
-              selected_object := Some 0
+                { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects
           | BUILDING _ ->
-              objects := { tool_type; x; y; angle = 0.0 } :: !objects;
-              selected_object := Some 0);
+              objects := { tool_type; x; y; angle = 0.0 } :: !objects);
+          (* Clear selection when drawing new objects *)
+          selected_object := None;
           redraw_all ();
           true)
       | None -> (
+          (* Delete mode - delete clicked object *)
+          if !is_deleting then (
+            let clicked_object = ref None in
+            (* Check each object (from front to back) *)
+            List.iteri
+              (fun idx obj ->
+                if !clicked_object = None then (
+                  match obj.tool_type with
+                  | ROAD ->
+                      if Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                           (Road.get_settings ())
+                      then clicked_object := Some idx
+                  | INTERSECTION ->
+                      if Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
+                           ~py:y_f (Intersection.get_settings ())
+                      then clicked_object := Some idx
+                  | BUILDING _ ->
+                      if Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                           (Building.get_settings ())
+                      then clicked_object := Some idx))
+              !objects;
+            (* Delete the clicked object if found *)
+            (match !clicked_object with
+            | Some idx -> (
+                objects := List.filteri (fun i _ -> i <> idx) !objects;
+                redraw_all ())
+            | None -> ());
+            true)
           (* Selection/move mode - check for clicks on objects *)
+          else if !is_moving then (
           let clicked_object = ref None in
           let clicked_rotate_button = ref false in
 
@@ -265,7 +302,10 @@ let () =
             drag_offset := None);
 
           redraw_all ();
-          true))
+          true)
+          else (
+            (* No mode active - do nothing *)
+            false)))
     else false
   in
 
