@@ -5,43 +5,32 @@ module Building : TOOL = struct
   type t = tool
 
   (* Default building settings *)
-  let current_settings =
-    ref
-      { rate_of_traffic = 10; building = HOUSE { time_in = 8; time_out = 18 } }
+  let current_settings = ref { rate_of_traffic = 10 }
 
   (* Size of the building *)
   let building_width = 50.0
   let building_height = 60.0
 
-  (* Helper to choose colors based on building type *)
-  let building_colors b =
-    match b with
-    | HOUSE _ ->
-        (* warm, residential-looking palette *)
-        ( (0.9, 0.9, 0.9),
-          (* body *)
-          (0.6, 0.2, 0.2) )
-        (* accent/roof *)
-    | OFFICE _ ->
-        (* cooler, glass/steel palette *)
-        ( (0.8, 0.8, 0.9),
-          (* body *)
-          (0.2, 0.2, 0.5) )
-        (* accent *)
-    | SCHOOL _ ->
-        (* bright, friendly palette *)
-        ( (0.95, 0.95, 0.8),
-          (* body *)
-          (0.3, 0.5, 0.2) )
-        (* accent *)
-    | HOSPITAL ->
-        (* clinical, clean palette *)
-        ( (0.95, 0.95, 0.95),
-          (* body *)
-          (0.7, 0.0, 0.0) )
-  (* accent / cross *)
+  (* Building objects encapsulate state for future simulation logic *)
+  class building_object ~x ~y ~angle ~(settings : building_settings) =
+    object
+      val x = x
+      val y = y
+      val angle = angle
+      val settings = settings
 
-  (* Draw simple windows for non-hospital buildings *)
+      method x = x
+      method y = y
+      method angle = angle
+      method rate_of_traffic = settings.rate_of_traffic
+      method settings = settings
+    end
+
+  (* Fixed palette so all buildings share a consistent look *)
+  let body_color = (0.8, 0.8, 0.8)
+  let accent_color = (0.6, 0.6, 0.6)
+
+  (* Draw simple windows *)
   let draw_windows cr ~x ~y ~w ~h =
     let cols = 2 in
     let rows = 3 in
@@ -61,27 +50,6 @@ module Building : TOOL = struct
       done
     done
 
-  (* Draw a red cross for hospital buildings *)
-  let draw_hospital_cross cr ~x ~y ~w ~h =
-    let cross_w = w /. 3.0 in
-    let cross_h = h /. 3.0 in
-    let thickness = cross_w /. 3.0 in
-
-    Cairo.set_source_rgb cr 0.8 0.0 0.0;
-    (* vertical bar *)
-    Cairo.rectangle cr
-      (x -. (thickness /. 2.0))
-      (y -. (cross_h /. 2.0))
-      ~w:thickness ~h:cross_h;
-    Cairo.fill cr;
-
-    (* horizontal bar *)
-    Cairo.rectangle cr
-      (x -. (cross_w /. 2.0))
-      (y -. (thickness /. 2.0))
-      ~w:cross_w ~h:thickness;
-    Cairo.fill cr
-
   (* Draw the building on the Cairo context with rotation *)
   let draw cr ~x ~y ~angle settings =
     match settings with
@@ -91,10 +59,6 @@ module Building : TOOL = struct
         let bw = building_width in
         let bh = building_height in
 
-        let (body_r, body_g, body_b), (accent_r, accent_g, accent_b) =
-          building_colors s.building
-        in
-
         Cairo.save cr;
 
         (* Translate to center, rotate, then translate back *)
@@ -103,11 +67,13 @@ module Building : TOOL = struct
         Cairo.translate cr (-.fx) (-.fy);
 
         (* Draw main building rectangle *)
+        let body_r, body_g, body_b = body_color in
         Cairo.set_source_rgb cr body_r body_g body_b;
         Cairo.rectangle cr (fx -. (bw /. 2.0)) (fy -. (bh /. 2.0)) ~w:bw ~h:bh;
         Cairo.fill cr;
 
         (* Draw roof/accent as a top strip *)
+        let accent_r, accent_g, accent_b = accent_color in
         Cairo.set_source_rgb cr accent_r accent_g accent_b;
         let roof_h = 10.0 in
         Cairo.rectangle cr
@@ -116,16 +82,20 @@ module Building : TOOL = struct
           ~w:bw ~h:roof_h;
         Cairo.fill cr;
 
-        (* Draw details based on building type *)
-        (match s.building with
-        | HOSPITAL -> draw_hospital_cross cr ~x:fx ~y:fy ~w:bw ~h:bh
-        | _ -> draw_windows cr ~x:fx ~y:fy ~w:bw ~h:(bh -. roof_h));
+        (* Draw simple windows to provide texture *)
+        draw_windows cr ~x:fx ~y:fy ~w:bw ~h:(bh -. roof_h);
 
         (* Draw outline around building *)
         Cairo.set_source_rgb cr 0.0 0.0 0.0;
         Cairo.set_line_width cr 2.0;
         Cairo.rectangle cr (fx -. (bw /. 2.0)) (fy -. (bh /. 2.0)) ~w:bw ~h:bh;
         Cairo.stroke cr;
+
+        (* Instantiate a building object with the provided settings.
+           We do not yet store it anywhere, but future features can hook into this. *)
+        let (_ : building_object) =
+          new building_object ~x ~y ~angle ~settings:s
+        in
 
         Cairo.restore cr
     | _ -> failwith "Building.draw: expected BuildingSettings"
@@ -155,9 +125,7 @@ module Building : TOOL = struct
     | _ -> failwith "Building.set_settings: expected BuildingSettings"
 
   (* Get the tool type *)
-  let get_tool () =
-    let s = !current_settings in
-    BUILDING s.building
+  let get_tool () = BUILDING
 
   (* Draw selection highlight (yellow border) around the building *)
   let draw_selection cr ~x ~y ~angle settings =

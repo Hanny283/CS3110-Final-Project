@@ -60,7 +60,7 @@ let () =
 
   let _ =
     add_button "Building" (fun () ->
-        current_tool := Some (BUILDING (HOUSE { time_in = 8; time_out = 18 }));
+        current_tool := Some BUILDING;
         is_deleting := false;
         is_moving := false)
   in
@@ -110,7 +110,7 @@ let () =
             | INTERSECTION ->
                 Intersection.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                   (Intersection.get_settings ())
-            | BUILDING _ ->
+            | BUILDING ->
                 Building.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                   (Building.get_settings ()))
           !objects;
@@ -130,7 +130,7 @@ let () =
                     ~angle:obj.angle (Intersection.get_settings ());
                   Intersection.draw_rotate_button cr ~x:obj.x ~y:obj.y
                     ~angle:obj.angle (Intersection.get_settings ())
-              | BUILDING _ ->
+              | BUILDING ->
                   Building.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                     (Building.get_settings ());
                   Building.draw_rotate_button cr ~x:obj.x ~y:obj.y
@@ -185,7 +185,7 @@ let () =
           | INTERSECTION ->
               objects :=
                 { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects
-          | BUILDING _ ->
+          | BUILDING ->
               objects := { tool_type; x; y; angle = 0.0 } :: !objects);
           (* Clear selection when drawing new objects *)
           selected_object := None;
@@ -208,7 +208,7 @@ let () =
                       if Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
                            ~py:y_f (Intersection.get_settings ())
                       then clicked_object := Some idx
-                  | BUILDING _ ->
+                  | BUILDING ->
                       if Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
                            (Building.get_settings ())
                       then clicked_object := Some idx))
@@ -248,7 +248,7 @@ let () =
                         clicked_object := Some idx;
                         clicked_rotate_button := true;
                         is_rotating := true)
-                  | BUILDING _ ->
+                  | BUILDING ->
                       if Building.point_on_rotate_button ~x:obj.x ~y:obj.y
                            ~angle:obj.angle ~px:x_f ~py:y_f
                            (Building.get_settings ())
@@ -280,7 +280,7 @@ let () =
                         let fx = float_of_int obj.x in
                         let fy = float_of_int obj.y in
                         drag_offset := Some (x_f -. fx, y_f -. fy))
-                  | BUILDING _ ->
+                  | BUILDING ->
                       if Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
                            (Building.get_settings ())
                       then (
@@ -334,7 +334,7 @@ let () =
             | ROAD -> Road.calculate_rotation ~cx ~cy ~mx:x ~my:y
             | INTERSECTION ->
                 Intersection.calculate_rotation ~cx ~cy ~mx:x ~my:y
-            | BUILDING _ ->
+                  | BUILDING ->
                 Building.calculate_rotation ~cx ~cy ~mx:x ~my:y
           in
           objects :=

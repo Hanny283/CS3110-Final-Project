@@ -4,8 +4,25 @@ open Tool_types
 module Intersection : TOOL = struct
   type t = tool
 
+  class intersection_object ~x ~y ~angle ~(settings : intersection_settings) =
+    object
+      val x = x
+      val y = y
+      val angle = angle
+      val settings = settings
+
+      method x = x
+      method y = y
+      method angle = angle
+      method settings = settings
+      method num_stops = settings.num_stops
+      method has_traffic_light = settings.has_traffic_light
+      method stop_duration = settings.stop_duration
+    end
+
   (* Default intersection settings *)
-  let current_settings = ref { num_stops = 4; has_traffic_light = false }
+  let current_settings =
+    ref { num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
 
   (* Size of the intersection *)
   let intersection_size = 60.0
@@ -114,7 +131,13 @@ module Intersection : TOOL = struct
         Cairo.stroke cr;
 
         (* Restore the transformation matrix *)
-        Cairo.restore cr
+        Cairo.restore cr;
+
+        (* Create an intersection object instance for future simulations *)
+        let (_ : intersection_object) =
+          new intersection_object ~x ~y ~angle ~settings:s
+        in
+        ()
     | _ ->
         (* Invalid settings type for intersection *)
         failwith "Intersection.draw: expected IntersectionSettings"

@@ -2,24 +2,20 @@
 
 type direction = North | South | East | West
 
-type building_type =
-  | HOUSE of { time_in : int; time_out : int }
-  | OFFICE of { time_in : int; time_out : int }
-  | SCHOOL of { time_in : int; time_out : int }
-  | HOSPITAL
+type tool = INTERSECTION | BUILDING | ROAD
 
-type tool = INTERSECTION | BUILDING of building_type | ROAD
+type building_settings = { mutable rate_of_traffic : int }
 
-type building_settings = {
-  mutable rate_of_traffic : int;
-  building : building_type;
+type road_settings = {
+  mutable speed_limit : int;
+  mutable num_lanes : int;
+  mutable max_capacity : int;
 }
-
-type road_settings = { mutable speed_limit : int; mutable num_lanes : int }
 
 type intersection_settings = {
   mutable num_stops : int;
   mutable has_traffic_light : bool;
+  mutable stop_duration : float;
 }
 
 (* Unified settings type for all tools *)

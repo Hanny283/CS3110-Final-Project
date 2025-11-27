@@ -4,8 +4,36 @@ open Tool_types
 module Road : TOOL = struct
   type t = tool
 
+  class road_object ~x ~y ~angle ~(settings : road_settings) =
+    object
+      val x = x
+      val y = y
+      val angle = angle
+      val settings = settings
+      val mutable occupancy = 0
+
+      method x = x
+      method y = y
+      method angle = angle
+      method settings = settings
+      method speed_limit = settings.speed_limit
+      method num_lanes = settings.num_lanes
+      method max_capacity = settings.max_capacity
+      method occupancy = occupancy
+
+      method reset_occupancy = occupancy <- 0
+
+      method update_occupancy delta =
+        let next = occupancy + delta in
+        let bounded =
+          max 0 (min settings.max_capacity next)
+        in
+        occupancy <- bounded
+    end
+
   (* Default road settings *)
-  let current_settings = ref { speed_limit = 35; num_lanes = 2 }
+  let current_settings =
+    ref { speed_limit = 35; num_lanes = 2; max_capacity = 100 }
 
   (* Road dimensions *)
   let road_length = 120.0
@@ -49,16 +77,20 @@ module Road : TOOL = struct
             Cairo.line_to cr (fx +. half_len -. 5.0) y_line;
             Cairo.stroke cr;
             Cairo.set_dash cr [||] ~ofs:0.0
-          done;
+          done);
 
-          (* Border outline *)
-          Cairo.set_source_rgb cr 0.0 0.0 0.0;
-          Cairo.set_line_width cr 2.0;
-          Cairo.rectangle cr (fx -. half_len) (fy -. half_wid) ~w:road_length
-            ~h:road_width;
-          Cairo.stroke cr;
+        (* Border outline *)
+        Cairo.set_source_rgb cr 0.0 0.0 0.0;
+        Cairo.set_line_width cr 2.0;
+        Cairo.rectangle cr (fx -. half_len) (fy -. half_wid) ~w:road_length
+          ~h:road_width;
+        Cairo.stroke cr;
 
-          Cairo.restore cr)
+        Cairo.restore cr;
+
+        (* Instantiate a road object for future simulation use *)
+        let (_ : road_object) = new road_object ~x ~y ~angle ~settings:s in
+        ()
     | _ -> failwith "Road.draw: expected RoadSettings"
 
   (* Erase the road *)
