@@ -1,32 +1,9 @@
 (* Define Tool types and Modules *)
+open Settings
 
 type direction = North | South | East | West
 
-type building_type =
-  | HOUSE of { time_in : int; time_out : int }
-  | OFFICE of { time_in : int; time_out : int }
-  | SCHOOL of { time_in : int; time_out : int }
-  | HOSPITAL
-
-type tool = INTERSECTION | BUILDING of building_type | ROAD
-
-type building_settings = {
-  mutable rate_of_traffic : int;
-  building : building_type;
-}
-
-type road_settings = { mutable speed_limit : int; mutable num_lanes : int }
-
-type intersection_settings = {
-  mutable num_stops : int;
-  mutable has_traffic_light : bool;
-}
-
-(* Unified settings type for all tools *)
-type settings =
-  | BuildingSettings of building_settings
-  | RoadSettings of road_settings
-  | IntersectionSettings of intersection_settings
+type tool = INTERSECTION | BUILDING | ROAD
 
 module type TOOL = sig
   type t = tool
