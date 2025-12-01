@@ -2,7 +2,6 @@
 open Settings
 
 type direction = North | South | East | West
-
 type tool = INTERSECTION | BUILDING | ROAD
 
 module type TOOL = sig

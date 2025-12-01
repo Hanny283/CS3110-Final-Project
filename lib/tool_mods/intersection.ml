@@ -10,7 +10,6 @@ module Intersection : TOOL = struct
       val y = y
       val angle = angle
       val settings = settings
-
       method x = x
       method y = y
       method angle = angle
@@ -28,7 +27,7 @@ module Intersection : TOOL = struct
   let intersection_size = 60.0
 
   (* Draw an intersection on the Cairo context with rotation *)
-  let draw cr ~x ~y ~angle settings =
+  (* let draw cr ~x ~y ~angle settings =
     match settings with
     | IntersectionSettings s ->
         let fx = float_of_int x in
@@ -140,13 +139,79 @@ module Intersection : TOOL = struct
         ()
     | _ ->
         (* Invalid settings type for intersection *)
-        failwith "Intersection.draw: expected IntersectionSettings"
+        failwith "Intersection.draw: expected IntersectionSettings" *)
+
+  let draw cr ~x ~y ~angle settings =
+    match settings with
+    | IntersectionSettings s ->
+        let fx = float x in
+        let fy = float y in
+        let size = intersection_size in
+        let half = size /. 2.0 in
+
+        Cairo.save cr;
+        Cairo.translate cr fx fy;
+        Cairo.rotate cr angle;
+        Cairo.translate cr (-.fx) (-.fy);
+
+        (* Road-like intersection square *)
+        Cairo.set_source_rgb cr 0.25 0.25 0.25;
+        Cairo.rectangle cr (fx -. half) (fy -. half) ~w:size ~h:size;
+        Cairo.fill cr;
+
+        (* Stop sign helper *)
+        let draw_stop_sign bx by =
+          Cairo.set_source_rgb cr 0.9 0.1 0.1;
+          Cairo.arc cr bx by ~r:8.0 ~a1:0.0 ~a2:(2.0 *. Float.pi);
+          Cairo.fill cr
+        in
+
+        (* 2-way: east-west only *)
+        (if not s.has_traffic_light then
+           match s.num_stops with
+           | 2 ->
+               draw_stop_sign (fx -. half -. 10.) fy;
+               (* West *)
+               draw_stop_sign (fx +. half +. 10.) fy (* East *)
+           | 4 ->
+               draw_stop_sign (fx -. half -. 10.) fy;
+               (* West *)
+               draw_stop_sign (fx +. half +. 10.) fy;
+               (* East *)
+               draw_stop_sign fx (fy -. half -. 10.);
+               (* North *)
+               draw_stop_sign fx (fy +. half +. 10.)
+               (* South *)
+           | _ -> ());
+
+        (* Traffic light overrides stop signs *)
+        if s.has_traffic_light then (
+          Cairo.set_source_rgb cr 0.1 0.1 0.1;
+          Cairo.rectangle cr (fx -. 8.) (fy -. 25.) ~w:16. ~h:50.;
+          Cairo.fill cr;
+
+          (* Lights: red/yellow/green *)
+          let draw_light i (r, g, b) =
+            let ly = fy -. 15. +. (float i *. 12.) in
+            Cairo.set_source_rgb cr r g b;
+            Cairo.arc cr fx ly ~r:4. ~a1:0.0 ~a2:(2.0 *. Float.pi);
+            Cairo.fill cr
+          in
+          draw_light 0 (1.0, 0.0, 0.0);
+          (* Red *)
+          draw_light 1 (1.0, 1.0, 0.0);
+          (* Yellow *)
+          draw_light 2 (0.0, 1.0, 0.0)
+          (* Green *));
+
+        Cairo.restore cr
+    | _ -> failwith "Intersection.draw: expected IntersectionSettings"
 
   (* Erase an intersection from the Cairo context *)
   let erase cr ~x ~y settings =
     match settings with
     | IntersectionSettings _ ->
-        let size = 80.0 in
+        let size = intersection_size +. 30.0 in
         (* Slightly larger than draw size to ensure full erase *)
         let fx = float_of_int x in
         let fy = float_of_int y in
@@ -290,9 +355,10 @@ module Intersection : TOOL = struct
     | IntersectionSettings _ ->
         let fx = float_of_int x in
         let fy = float_of_int y in
-        let size = intersection_size in
         let button_radius = 12.0 in
-        let button_distance = (size /. 2.0) +. 20.0 in
+        let size = intersection_size in
+        let half = size /. 2.0 in
+        let button_distance = half +. 20.0 in
 
         (* Calculate button position *)
         let button_x = fx +. (button_distance *. cos angle) in

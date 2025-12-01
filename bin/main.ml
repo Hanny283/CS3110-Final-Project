@@ -4,7 +4,13 @@ open Cs3110_final_project.Intersection
 open Cs3110_final_project.Building
 
 (* Type to represent a drawn object *)
-type drawn_object = { tool_type : tool; x : int; y : int; angle : float }
+type drawn_object = {
+  tool_type : tool;
+  x : int;
+  y : int;
+  angle : float;
+  settings : settings;
+}
 
 let () =
   (* Initialize GTK *)
@@ -46,10 +52,12 @@ let () =
     b
   in
 
-  let _ = add_button "Road" (fun () ->
-      current_tool := Some ROAD;
-      is_deleting := false;
-      is_moving := false) in
+  let _ =
+    add_button "Road" (fun () ->
+        current_tool := Some ROAD;
+        is_deleting := false;
+        is_moving := false)
+  in
 
   let _ =
     add_button "Intersection" (fun () ->
@@ -105,14 +113,12 @@ let () =
           (fun obj ->
             match obj.tool_type with
             | ROAD ->
-                Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                  (Road.get_settings ())
+                Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle obj.settings
             | INTERSECTION ->
                 Intersection.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                  (Intersection.get_settings ())
+                  obj.settings
             | BUILDING ->
-                Building.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                  (Building.get_settings ()))
+                Building.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle obj.settings)
           !objects;
         (* Draw selection highlights and rotate buttons *)
         (match !selected_object with
@@ -122,19 +128,19 @@ let () =
               match obj.tool_type with
               | ROAD ->
                   Road.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                    (Road.get_settings ());
+                    obj.settings;
                   Road.draw_rotate_button cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                    (Road.get_settings ())
+                    obj.settings
               | INTERSECTION ->
                   Intersection.draw_selection cr ~x:obj.x ~y:obj.y
-                    ~angle:obj.angle (Intersection.get_settings ());
+                    ~angle:obj.angle obj.settings;
                   Intersection.draw_rotate_button cr ~x:obj.x ~y:obj.y
-                    ~angle:obj.angle (Intersection.get_settings ())
+                    ~angle:obj.angle obj.settings
               | BUILDING ->
                   Building.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                    (Building.get_settings ());
+                    obj.settings;
                   Building.draw_rotate_button cr ~x:obj.x ~y:obj.y
-                    ~angle:obj.angle (Building.get_settings ())
+                    ~angle:obj.angle obj.settings
             with _ -> ())
         | None -> ());
         drawing_area#misc#queue_draw ()
@@ -177,187 +183,214 @@ let () =
       let y = int_of_float y_f in
 
       match !current_tool with
-      | Some tool_type -> (
+      | Some tool_type ->
           (* Drawing mode - place new object *)
           (match tool_type with
           | ROAD ->
-              objects := { tool_type = ROAD; x; y; angle = 0.0 } :: !objects
+              objects :=
+                {
+                  tool_type = ROAD;
+                  x;
+                  y;
+                  angle = 0.0;
+                  settings = Road.get_settings ();
+                }
+                :: !objects
           | INTERSECTION ->
               objects :=
-                { tool_type = INTERSECTION; x; y; angle = 0.0 } :: !objects
+                {
+                  tool_type = INTERSECTION;
+                  x;
+                  y;
+                  angle = 0.0;
+                  settings = Intersection.get_settings ();
+                }
+                :: !objects
           | BUILDING ->
-              objects := { tool_type; x; y; angle = 0.0 } :: !objects);
+              objects :=
+                {
+                  tool_type = BUILDING;
+                  x;
+                  y;
+                  angle = 0.0;
+                  settings = Building.get_settings ();
+                }
+                :: !objects);
           (* Clear selection when drawing new objects *)
           selected_object := None;
           redraw_all ();
-          true)
-      | None -> (
-          (* Delete mode - delete clicked object *)
-          if !is_deleting then (
+          true
+      | None ->
+          if
+            (* Delete mode - delete clicked object *)
+            !is_deleting
+          then (
             let clicked_object = ref None in
             (* Check each object (from front to back) *)
             List.iteri
               (fun idx obj ->
-                if !clicked_object = None then (
+                if !clicked_object = None then
                   match obj.tool_type with
                   | ROAD ->
-                      if Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                           (Road.get_settings ())
+                      if
+                        Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                          obj.settings
                       then clicked_object := Some idx
                   | INTERSECTION ->
-                      if Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
-                           ~py:y_f (Intersection.get_settings ())
+                      if
+                        Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
+                          ~py:y_f obj.settings
                       then clicked_object := Some idx
                   | BUILDING ->
-                      if Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                           (Building.get_settings ())
-                      then clicked_object := Some idx))
+                      if
+                        Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                          obj.settings
+                      then clicked_object := Some idx)
               !objects;
             (* Delete the clicked object if found *)
             (match !clicked_object with
-            | Some idx -> (
+            | Some idx ->
                 objects := List.filteri (fun i _ -> i <> idx) !objects;
-                redraw_all ())
+                redraw_all ()
             | None -> ());
-            true)
-          (* Selection/move mode - check for clicks on objects *)
+            true (* Selection/move mode - check for clicks on objects *))
           else if !is_moving then (
-          let clicked_object = ref None in
-          let clicked_rotate_button = ref false in
+            let clicked_object = ref None in
+            let clicked_rotate_button = ref false in
 
-          (* Check each object (from front to back) *)
-          List.iteri
-            (fun idx obj ->
-              if !clicked_object = None then (
-                (* Check if clicked on rotate button *)
-                if !selected_object = Some idx then (
-                  match obj.tool_type with
-                  | ROAD ->
-                      if Road.point_on_rotate_button ~x:obj.x ~y:obj.y
-                           ~angle:obj.angle ~px:x_f ~py:y_f
-                           (Road.get_settings ())
-                      then (
-                        clicked_object := Some idx;
-                        clicked_rotate_button := true;
-                        is_rotating := true)
-                  | INTERSECTION ->
-                      if Intersection.point_on_rotate_button ~x:obj.x ~y:obj.y
-                           ~angle:obj.angle ~px:x_f ~py:y_f
-                           (Intersection.get_settings ())
-                      then (
-                        clicked_object := Some idx;
-                        clicked_rotate_button := true;
-                        is_rotating := true)
-                  | BUILDING ->
-                      if Building.point_on_rotate_button ~x:obj.x ~y:obj.y
-                           ~angle:obj.angle ~px:x_f ~py:y_f
-                           (Building.get_settings ())
-                      then (
-                        clicked_object := Some idx;
-                        clicked_rotate_button := true;
-                        is_rotating := true));
-
-                (* Check if clicked on object itself *)
+            (* Check each object (from front to back) *)
+            List.iteri
+              (fun idx obj ->
                 if !clicked_object = None then (
-                  match obj.tool_type with
-                  | ROAD ->
-                      if Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                           (Road.get_settings ())
-                      then (
-                        clicked_object := Some idx;
-                        clicked_rotate_button := false;
-                        is_rotating := false;
-                        let fx = float_of_int obj.x in
-                        let fy = float_of_int obj.y in
-                        drag_offset := Some (x_f -. fx, y_f -. fy))
-                  | INTERSECTION ->
-                      if Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
-                           ~py:y_f (Intersection.get_settings ())
-                      then (
-                        clicked_object := Some idx;
-                        clicked_rotate_button := false;
-                        is_rotating := false;
-                        let fx = float_of_int obj.x in
-                        let fy = float_of_int obj.y in
-                        drag_offset := Some (x_f -. fx, y_f -. fy))
-                  | BUILDING ->
-                      if Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                           (Building.get_settings ())
-                      then (
-                        clicked_object := Some idx;
-                        clicked_rotate_button := false;
-                        is_rotating := false;
-                        let fx = float_of_int obj.x in
-                        let fy = float_of_int obj.y in
-                        drag_offset := Some (x_f -. fx, y_f -. fy)))))
-            !objects;
+                  (* Check if clicked on rotate button *)
+                  (if !selected_object = Some idx then
+                     match obj.tool_type with
+                     | ROAD ->
+                         if
+                           Road.point_on_rotate_button ~x:obj.x ~y:obj.y
+                             ~angle:obj.angle ~px:x_f ~py:y_f obj.settings
+                         then (
+                           clicked_object := Some idx;
+                           clicked_rotate_button := true;
+                           is_rotating := true)
+                     | INTERSECTION ->
+                         if
+                           Intersection.point_on_rotate_button ~x:obj.x ~y:obj.y
+                             ~angle:obj.angle ~px:x_f ~py:y_f obj.settings
+                         then (
+                           clicked_object := Some idx;
+                           clicked_rotate_button := true;
+                           is_rotating := true)
+                     | BUILDING ->
+                         if
+                           Building.point_on_rotate_button ~x:obj.x ~y:obj.y
+                             ~angle:obj.angle ~px:x_f ~py:y_f obj.settings
+                         then (
+                           clicked_object := Some idx;
+                           clicked_rotate_button := true;
+                           is_rotating := true));
 
-          (* Update selection *)
-          if !clicked_object <> None then
-            selected_object := !clicked_object
-          else (
-            (* Clicked on empty space - deselect *)
-            selected_object := None;
-            is_rotating := false;
-            drag_offset := None);
+                  (* Check if clicked on object itself *)
+                  if !clicked_object = None then
+                    match obj.tool_type with
+                    | ROAD ->
+                        if
+                          Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
+                            obj.settings
+                        then (
+                          clicked_object := Some idx;
+                          clicked_rotate_button := false;
+                          is_rotating := false;
+                          let fx = float_of_int obj.x in
+                          let fy = float_of_int obj.y in
+                          drag_offset := Some (x_f -. fx, y_f -. fy))
+                    | INTERSECTION ->
+                        if
+                          Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
+                            ~py:y_f obj.settings
+                        then (
+                          clicked_object := Some idx;
+                          clicked_rotate_button := false;
+                          is_rotating := false;
+                          let fx = float_of_int obj.x in
+                          let fy = float_of_int obj.y in
+                          drag_offset := Some (x_f -. fx, y_f -. fy))
+                    | BUILDING ->
+                        if
+                          Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f
+                            ~py:y_f obj.settings
+                        then (
+                          clicked_object := Some idx;
+                          clicked_rotate_button := false;
+                          is_rotating := false;
+                          let fx = float_of_int obj.x in
+                          let fy = float_of_int obj.y in
+                          drag_offset := Some (x_f -. fx, y_f -. fy))))
+              !objects;
 
-          redraw_all ();
-          true)
-          else (
+            (* Update selection *)
+            if !clicked_object <> None then selected_object := !clicked_object
+            else (
+              (* Clicked on empty space - deselect *)
+              selected_object := None;
+              is_rotating := false;
+              drag_offset := None);
+
+            redraw_all ();
+            true)
+          else
             (* No mode active - do nothing *)
-            false)))
+            false)
     else false
   in
 
   (* Mouse motion handler - handle dragging and rotation *)
   let motion_callback ev =
-    if !button_pressed && !selected_object <> None then (
+    if !button_pressed && !selected_object <> None then
       let x = GdkEvent.Motion.x ev in
       let y = GdkEvent.Motion.y ev in
 
       let selected_idx =
-        match !selected_object with
-        | Some idx -> idx
-        | None -> assert false
+        match !selected_object with Some idx -> idx | None -> assert false
       in
 
       try
         let obj = List.nth !objects selected_idx in
         let objects_list = !objects in
 
-        if !is_rotating then (
-          (* Rotating: calculate angle from center to mouse position *)
-          let cx = float_of_int obj.x in
-          let cy = float_of_int obj.y in
-          let new_angle =
-            match obj.tool_type with
-            | ROAD -> Road.calculate_rotation ~cx ~cy ~mx:x ~my:y
-            | INTERSECTION ->
-                Intersection.calculate_rotation ~cx ~cy ~mx:x ~my:y
-                  | BUILDING ->
-                Building.calculate_rotation ~cx ~cy ~mx:x ~my:y
-          in
-          objects :=
-            List.mapi
-              (fun i o -> if i = selected_idx then { o with angle = new_angle } else o)
-              objects_list)
-        else (
-          (* Dragging: move object by mouse offset *)
-          match !drag_offset with
-          | Some (offset_x, offset_y) ->
-              let new_x = int_of_float (x -. offset_x) in
-              let new_y = int_of_float (y -. offset_y) in
-              objects :=
-                List.mapi
-                  (fun i o ->
-                    if i = selected_idx then { o with x = new_x; y = new_y }
-                    else o)
-                  objects_list
-          | None -> ());
+        (if !is_rotating then
+           (* Rotating: calculate angle from center to mouse position *)
+           let cx = float_of_int obj.x in
+           let cy = float_of_int obj.y in
+           let new_angle =
+             match obj.tool_type with
+             | ROAD -> Road.calculate_rotation ~cx ~cy ~mx:x ~my:y
+             | INTERSECTION ->
+                 Intersection.calculate_rotation ~cx ~cy ~mx:x ~my:y
+             | BUILDING -> Building.calculate_rotation ~cx ~cy ~mx:x ~my:y
+           in
+           objects :=
+             List.mapi
+               (fun i o ->
+                 if i = selected_idx then { o with angle = new_angle } else o)
+               objects_list
+         else
+           (* Dragging: move object by mouse offset *)
+           match !drag_offset with
+           | Some (offset_x, offset_y) ->
+               let new_x = int_of_float (x -. offset_x) in
+               let new_y = int_of_float (y -. offset_y) in
+               objects :=
+                 List.mapi
+                   (fun i o ->
+                     if i = selected_idx then { o with x = new_x; y = new_y }
+                     else o)
+                   objects_list
+           | None -> ());
 
         redraw_all ();
         true
-      with _ -> false)
+      with _ -> false
     else false
   in
 
@@ -382,12 +415,7 @@ let () =
 
   (* Set event mask to receive mouse events *)
   drawing_area#event#add
-    [
-      `BUTTON_PRESS;
-      `BUTTON_RELEASE;
-      `POINTER_MOTION;
-      `BUTTON1_MOTION;
-    ];
+    [ `BUTTON_PRESS; `BUTTON_RELEASE; `POINTER_MOTION; `BUTTON1_MOTION ];
 
   (* Connect window destroy signal to quit the application *)
   let _ = window#connect#destroy ~callback:GMain.quit in
