@@ -11,9 +11,7 @@ type drawn_object = { tool_type : tool; x : int; y : int; angle : float }
 (* These match the dimensions used in the individual tool modules. *)
 let road_length = 120.0
 let road_width = 30.0
-let intersection_size = 60.0
 let building_width = 50.0
-let building_height = 60.0
 
 (* Max distance in pixels to snap. *)
 let snap_threshold = 25.0

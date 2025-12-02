@@ -1,10 +1,11 @@
 (* Road module - implements TOOL signature *)
 open Tool_types
+open Settings
 
 module Road : TOOL = struct
   type t = tool
 
-  class road_object ~x ~y ~angle ~(settings : road_settings) =
+  class road_object ~(x : int) ~(y : int) ~(angle : float) ~(settings : road_settings) =
     object
       val x = x
       val y = y

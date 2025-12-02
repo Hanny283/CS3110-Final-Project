@@ -1,5 +1,9 @@
 (* Define Tool types and Modules *)
-open Settings
+
+type settings = Settings.settings
+type building_settings = Settings.building_settings
+type road_settings = Settings.road_settings
+type intersection_settings = Settings.intersection_settings
 
 type direction = North | South | East | West
 
