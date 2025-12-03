@@ -6,9 +6,6 @@ open Cs3110_final_project.Building
 (* Type to represent a drawn object *)
 type drawn_object = { tool_type : tool; x : int; y : int; angle : float }
 
-(* --- Snapping / connecting helpers ------------------------------------- *)
-
-(* These match the dimensions used in the individual tool modules. *)
 let road_length = 120.0
 let road_width = 30.0
 let building_width = 50.0
@@ -21,8 +18,8 @@ let distance (x1, y1) (x2, y2) =
   let dy = y1 -. y2 in
   sqrt ((dx *. dx) +. (dy *. dy))
 
+(* Compute the two endpoints of a road, based on its center and angle. *)
 let road_endpoints (obj : drawn_object) =
-  (* Compute the two endpoints of a road, based on its center and angle. *)
   let fx = float_of_int obj.x in
   let fy = float_of_int obj.y in
   let half_len = road_length /. 2.0 in
@@ -30,9 +27,8 @@ let road_endpoints (obj : drawn_object) =
   let dy = half_len *. sin obj.angle in
   ((fx -. dx, fy -. dy), (fx +. dx, fy +. dy))
 
+(* Approximate attachment points on each side of the road where buildings can snap. *)
 let road_side_points (obj : drawn_object) =
-  (* Approximate attachment points on each side of the road where
-     buildings can snap. *)
   let fx = float_of_int obj.x in
   let fy = float_of_int obj.y in
   let normal_x = -.sin obj.angle in
