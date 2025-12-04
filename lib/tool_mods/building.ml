@@ -1,5 +1,6 @@
 (* Building module - implements TOOL signature *)
 open Tool_types
+open Settings
 
 module Building : TOOL = struct
   type t = tool
@@ -12,7 +13,7 @@ module Building : TOOL = struct
   let building_height = 60.0
 
   (* Building objects encapsulate state for future simulation logic *)
-  class building_object ~x ~y ~angle ~(settings : building_settings) =
+  class building_object ~(x : int) ~(y : int) ~(angle : float) ~(settings : building_settings) =
     object
       val x = x
       val y = y

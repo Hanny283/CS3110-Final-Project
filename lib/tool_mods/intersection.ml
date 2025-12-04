@@ -1,10 +1,14 @@
 (* Intersection module - implements TOOL signature *)
 open Tool_types
+open Settings
+
+[@@@warning "-34"]
 
 module Intersection : TOOL = struct
   type t = tool
 
-  class intersection_object ~x ~y ~angle ~(settings : intersection_settings) =
+  class intersection_object ~(x : int) ~(y : int) ~(angle : float)
+    ~(settings : intersection_settings) =
     object
       val x = x
       val y = y
