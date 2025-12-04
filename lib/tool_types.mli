@@ -1,4 +1,4 @@
-(* Define Tool types and Modules *)
+(* Interface for Tool types and module signatures *)
 
 type settings = Settings.settings
 type building_settings = Settings.building_settings
@@ -48,3 +48,4 @@ module type TOOL = sig
   (* Get the tool name for display in toolbar *)
   val get_name : unit -> string
 end
+
