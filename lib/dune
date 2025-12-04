@@ -2,4 +2,5 @@
 
 (library
  (name cs3110_final_project)
- (libraries lablgtk3 cairo2))
+ (libraries lablgtk3 cairo2)
+ (instrumentation (backend bisect_ppx)))
