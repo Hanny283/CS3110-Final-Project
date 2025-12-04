@@ -52,26 +52,219 @@ let () =
     b
   in
 
-  let _ =
-    add_button "Road" (fun () ->
-        current_tool := Some ROAD;
+  (* Helper function to create a tool button with settings dropdown *)
+  let add_tool_with_settings tool_name tool_type settings_editor =
+    (* Create a horizontal box for the tool button and settings button *)
+    let tool_container = GPack.hbox ~packing:toolbar#add () in
+    
+    (* Tool button *)
+    let tool_button = GButton.button ~label:tool_name ~packing:tool_container#add () in
+    ignore (tool_button#connect#clicked ~callback:(fun () ->
+        current_tool := Some tool_type;
         is_deleting := false;
-        is_moving := false)
+        is_moving := false));
+    
+    (* Settings button (gear icon) *)
+    let settings_button = GButton.button ~label:"⚙" ~packing:tool_container#add () in
+    settings_button#misc#set_size_request ~width:30 ~height:30 ();
+    ignore (settings_button#connect#clicked ~callback:(fun () ->
+        settings_editor ()));
+    
+    tool_container
   in
 
-  let _ =
-    add_button "Intersection" (fun () ->
-        current_tool := Some INTERSECTION;
-        is_deleting := false;
-        is_moving := false)
+  (* Settings editor for Road *)
+  let edit_road_settings () =
+    let dialog = GWindow.dialog ~title:"Road Settings" ~modal:true () in
+    let vbox_dialog = dialog#vbox in
+    
+    (* Speed Limit *)
+    let speed_hbox = GPack.hbox ~packing:vbox_dialog#pack () in
+    let _ = GMisc.label ~text:"Speed Limit (mph): " ~packing:speed_hbox#add () in
+    let speed_entry = GEdit.entry ~packing:speed_hbox#add () in
+    let current_road_settings = match Road.get_settings () with
+      | RoadSettings s -> s
+      | _ -> { speed_limit = 35; num_lanes = 2; max_capacity = 100 }
+    in
+    speed_entry#set_text (string_of_int current_road_settings.speed_limit);
+    
+    (* Number of Lanes *)
+    let lanes_hbox = GPack.hbox ~packing:vbox_dialog#pack () in
+    let _ = GMisc.label ~text:"Number of Lanes: " ~packing:lanes_hbox#add () in
+    let lanes_entry = GEdit.entry ~packing:lanes_hbox#add () in
+    lanes_entry#set_text (string_of_int current_road_settings.num_lanes);
+    
+    (* Max Capacity *)
+    let capacity_hbox = GPack.hbox ~packing:vbox_dialog#pack () in
+    let _ = GMisc.label ~text:"Max Capacity: " ~packing:capacity_hbox#add () in
+    let capacity_entry = GEdit.entry ~packing:capacity_hbox#add () in
+    capacity_entry#set_text (string_of_int current_road_settings.max_capacity);
+    
+    (* Buttons *)
+    dialog#add_button_stock `OK `OK;
+    dialog#add_button_stock `CANCEL `CANCEL;
+    
+    ignore (dialog#connect#response ~callback:(fun resp ->
+        if resp = `OK then (
+          try
+            let speed = int_of_string speed_entry#text in
+            let lanes = int_of_string lanes_entry#text in
+            let capacity = int_of_string capacity_entry#text in
+            if lanes > 0 && capacity > 0 && speed > 0 then (
+              Road.set_settings (RoadSettings {
+                speed_limit = speed;
+                num_lanes = lanes;
+                max_capacity = capacity;
+              });
+              dialog#destroy ()
+            ) else (
+              let error_dialog = GWindow.message_dialog
+                ~message:"Invalid values! All values must be positive integers."
+                ~message_type:`ERROR
+                ~buttons:GWindow.Buttons.ok
+                () in
+              ignore (error_dialog#connect#response ~callback:(fun _ -> error_dialog#destroy ()));
+              error_dialog#show ()
+            )
+          with
+          | Failure _ ->
+              let error_dialog = GWindow.message_dialog
+                ~message:"Invalid input! Please enter valid integers."
+                ~message_type:`ERROR
+                ~buttons:GWindow.Buttons.ok
+                () in
+              ignore (error_dialog#connect#response ~callback:(fun _ -> error_dialog#destroy ()));
+              error_dialog#show ()
+        ) else
+          dialog#destroy ()));
+    
+    dialog#show ()
   in
 
-  let _ =
-    add_button "Building" (fun () ->
-        current_tool := Some BUILDING;
-        is_deleting := false;
-        is_moving := false)
+  (* Settings editor for Intersection *)
+  let edit_intersection_settings () =
+    let dialog = GWindow.dialog ~title:"Intersection Settings" ~modal:true () in
+    let vbox_dialog = dialog#vbox in
+    
+    let current_int_settings = match Intersection.get_settings () with
+      | IntersectionSettings s -> s
+      | _ -> { num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
+    in
+    
+    (* Number of Stops (2 or 4) *)
+    let stops_hbox = GPack.hbox ~packing:vbox_dialog#pack () in
+    let _ = GMisc.label ~text:"Stop Type: " ~packing:stops_hbox#add () in
+    let stops_combo = GEdit.combo ~popdown_strings:["2-way"; "4-way"] ~packing:stops_hbox#add () in
+    stops_combo#entry#set_text (if current_int_settings.num_stops = 2 then "2-way" else "4-way");
+    
+    (* Traffic Light checkbox *)
+    let traffic_light_check = GButton.check_button ~label:"Has Traffic Light" ~packing:vbox_dialog#pack () in
+    traffic_light_check#set_active current_int_settings.has_traffic_light;
+    
+    (* Stop Duration *)
+    let duration_hbox = GPack.hbox ~packing:vbox_dialog#pack () in
+    let _ = GMisc.label ~text:"Stop Duration (seconds): " ~packing:duration_hbox#add () in
+    let duration_entry = GEdit.entry ~packing:duration_hbox#add () in
+    duration_entry#set_text (Printf.sprintf "%.1f" current_int_settings.stop_duration);
+    
+    (* Buttons *)
+    dialog#add_button_stock `OK `OK;
+    dialog#add_button_stock `CANCEL `CANCEL;
+    
+    ignore (dialog#connect#response ~callback:(fun resp ->
+        if resp = `OK then (
+          try
+            let num_stops = if stops_combo#entry#text = "2-way" then 2 else 4 in
+            let has_traffic_light = traffic_light_check#active in
+            let stop_duration = float_of_string duration_entry#text in
+            if stop_duration > 0.0 then (
+              Intersection.set_settings (IntersectionSettings {
+                num_stops = num_stops;
+                has_traffic_light = has_traffic_light;
+                stop_duration = stop_duration;
+              });
+              dialog#destroy ()
+            ) else (
+              let error_dialog = GWindow.message_dialog
+                ~message:"Stop duration must be positive!"
+                ~message_type:`ERROR
+                ~buttons:GWindow.Buttons.ok
+                () in
+              ignore (error_dialog#connect#response ~callback:(fun _ -> error_dialog#destroy ()));
+              error_dialog#show ()
+            )
+          with
+          | Failure _ ->
+              let error_dialog = GWindow.message_dialog
+                ~message:"Invalid input! Please enter a valid number for stop duration."
+                ~message_type:`ERROR
+                ~buttons:GWindow.Buttons.ok
+                () in
+              ignore (error_dialog#connect#response ~callback:(fun _ -> error_dialog#destroy ()));
+              error_dialog#show ()
+        ) else
+          dialog#destroy ()));
+    
+    dialog#show ()
   in
+
+  (* Settings editor for Building *)
+  let edit_building_settings () =
+    let dialog = GWindow.dialog ~title:"Building Settings" ~modal:true () in
+    let vbox_dialog = dialog#vbox in
+    
+    let current_building_settings = match Building.get_settings () with
+      | BuildingSettings s -> s
+      | _ -> { rate_of_traffic = 10 }
+    in
+    
+    (* Rate of Traffic *)
+    let rate_hbox = GPack.hbox ~packing:vbox_dialog#pack () in
+    let _ = GMisc.label ~text:"Rate of Traffic: " ~packing:rate_hbox#add () in
+    let rate_entry = GEdit.entry ~packing:rate_hbox#add () in
+    rate_entry#set_text (string_of_int current_building_settings.rate_of_traffic);
+    
+    (* Buttons *)
+    dialog#add_button_stock `OK `OK;
+    dialog#add_button_stock `CANCEL `CANCEL;
+    
+    ignore (dialog#connect#response ~callback:(fun resp ->
+        if resp = `OK then (
+          try
+            let rate = int_of_string rate_entry#text in
+            if rate >= 0 then (
+              Building.set_settings (BuildingSettings {
+                rate_of_traffic = rate;
+              });
+              dialog#destroy ()
+            ) else (
+              let error_dialog = GWindow.message_dialog
+                ~message:"Rate of traffic must be non-negative!"
+                ~message_type:`ERROR
+                ~buttons:GWindow.Buttons.ok
+                () in
+              ignore (error_dialog#connect#response ~callback:(fun _ -> error_dialog#destroy ()));
+              error_dialog#show ()
+            )
+          with
+          | Failure _ ->
+              let error_dialog = GWindow.message_dialog
+                ~message:"Invalid input! Please enter a valid integer."
+                ~message_type:`ERROR
+                ~buttons:GWindow.Buttons.ok
+                () in
+              ignore (error_dialog#connect#response ~callback:(fun _ -> error_dialog#destroy ()));
+              error_dialog#show ()
+        ) else
+          dialog#destroy ()));
+    
+    dialog#show ()
+  in
+
+  (* Add tool buttons with settings *)
+  let _ = add_tool_with_settings "Road" ROAD edit_road_settings in
+  let _ = add_tool_with_settings "Intersection" INTERSECTION edit_intersection_settings in
+  let _ = add_tool_with_settings "Building" BUILDING edit_building_settings in
 
   (* Move button *)
   let _ =
