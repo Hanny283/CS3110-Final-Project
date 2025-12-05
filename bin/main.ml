@@ -9,7 +9,7 @@ type drawn_object = {
   x : int;
   y : int;
   angle : float;
-  ungrouped : bool; (* true = treat individually even if snapped *)
+  ungrouped : bool;
 }
 
 (* Constants for snapping logic *)
@@ -20,18 +20,24 @@ let building_width = 50.0
 (* Max distance in pixels to snap. *)
 let snap_threshold = 55.0
 
+(**requires two points that represent the x and y distance of an object and
+   returns the difference in distance between two objects. This is mainly used
+   for snapping logic and to check if two objects are connected*)
 let distance (x1, y1) (x2, y2) =
   let dx = x1 -. x2 in
   let dy = y1 -. y2 in
   sqrt ((dx *. dx) +. (dy *. dy))
 
-(* Compute the two endpoints of a road, based on its center and angle. *)
+(** Takes in an object(Which we use for roads only) and adds and substracts the
+    distance of half the round to the roads x and y coordinates to return a
+    tuple that contains the coordinates for both ends of the road. This is used
+    for the snapping logic as well as the snapping check*)
 let road_endpoints (obj : drawn_object) =
   let fx = float_of_int obj.x in
   let fy = float_of_int obj.y in
-  let half_len = road_length /. 2.0 in
-  let dx = half_len *. cos obj.angle in
-  let dy = half_len *. sin obj.angle in
+  let half_length = road_length /. 2.0 in
+  let dx = half_length *. cos obj.angle in
+  let dy = half_length *. sin obj.angle in
   ((fx -. dx, fy -. dy), (fx +. dx, fy +. dy))
 
 (* Approximate attachment points on each side of the road where buildings can snap. *)
@@ -243,20 +249,20 @@ let () =
     let objs = !objects in
     let n = List.length objs in
     let visited = Array.make n false in
-    let gids = Array.make n (-1) in
+    let groupID_table = Array.make n (-1) in
     Hashtbl.reset groups_tbl;
     let ungrouped_acc = ref [] in
-    let rec dfs i gid =
+    let rec dfs i groupID =
       visited.(i) <- true;
-      gids.(i) <- gid;
+      groupID_table.(i) <- groupID;
       let members =
-        match Hashtbl.find_opt groups_tbl gid with
+        match Hashtbl.find_opt groups_tbl groupID with
         | Some lst -> i :: lst
         | None -> [ i ]
       in
-      Hashtbl.replace groups_tbl gid members;
+      Hashtbl.replace groups_tbl groupID members;
       for j = 0 to n - 1 do
-        if (not visited.(j)) && is_connected objs i j then dfs j gid
+        if (not visited.(j)) && is_connected objs i j then dfs j groupID
       done
     in
     for i = 0 to n - 1 do
@@ -264,7 +270,7 @@ let () =
       if obj.ungrouped then ungrouped_acc := i :: !ungrouped_acc
       else if not visited.(i) then dfs i i
     done;
-    group_ids := gids;
+    group_ids := groupID_table;
     ungrouped_list := List.rev !ungrouped_acc
   in
 
