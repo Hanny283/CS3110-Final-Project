@@ -151,6 +151,164 @@ let snap_new_object ~(others : drawn_object list) ~(tool_type : tool) ~(x : int)
           (int_of_float tgt.tx, int_of_float tgt.ty, angle)
       | _ -> (x, y, angle))
 
+(* Create a right-click context menu with nested submenus *)
+let make_settings_menu_for_road () =
+  let menu = GMenu.menu () in
+
+  (* Speed submenu *)
+  let speed_menu = GMenu.menu () in
+  let speed_item =
+    GMenu.menu_item ~label:"Speed Limit" ~packing:menu#append ()
+  in
+  speed_item#set_submenu speed_menu;
+  List.iter
+    (fun spd ->
+      let item =
+        GMenu.menu_item
+          ~label:(string_of_int spd ^ " mph")
+          ~packing:speed_menu#append ()
+      in
+      ignore
+        (item#connect#activate ~callback:(fun () ->
+             Road.set_settings
+               (RoadSettings
+                  {
+                    speed_limit = spd;
+                    num_lanes =
+                      (match Road.get_settings () with
+                      | RoadSettings r -> r.num_lanes
+                      | _ -> 2);
+                    max_capacity =
+                      (match Road.get_settings () with
+                      | RoadSettings r -> r.max_capacity
+                      | _ -> 10);
+                  }))))
+    [ 25; 35; 50; 65 ];
+
+  (* Lane submenu *)
+  let lane_menu = GMenu.menu () in
+  let lane_item =
+    GMenu.menu_item ~label:"Number of Lanes" ~packing:menu#append ()
+  in
+  lane_item#set_submenu lane_menu;
+  List.iter
+    (fun ln ->
+      let item =
+        GMenu.menu_item
+          ~label:(string_of_int ln ^ " lanes")
+          ~packing:lane_menu#append ()
+      in
+      ignore
+        (item#connect#activate ~callback:(fun () ->
+             Road.set_settings
+               (RoadSettings
+                  {
+                    speed_limit =
+                      (match Road.get_settings () with
+                      | RoadSettings r -> r.speed_limit
+                      | _ -> 35);
+                    num_lanes = ln;
+                    max_capacity =
+                      (match Road.get_settings () with
+                      | RoadSettings r -> r.max_capacity
+                      | _ -> 10);
+                  }))))
+    [ 1; 2; 3; 4 ];
+
+  (* Capacity submenu *)
+  let cap_menu = GMenu.menu () in
+  let cap_item =
+    GMenu.menu_item ~label:"Road Capacity" ~packing:menu#append ()
+  in
+  cap_item#set_submenu cap_menu;
+  List.iter
+    (fun cap ->
+      let item =
+        GMenu.menu_item
+          ~label:(string_of_int cap ^ " cars")
+          ~packing:cap_menu#append ()
+      in
+      ignore
+        (item#connect#activate ~callback:(fun () ->
+             Road.set_settings
+               (RoadSettings
+                  {
+                    speed_limit =
+                      (match Road.get_settings () with
+                      | RoadSettings r -> r.speed_limit
+                      | _ -> 35);
+                    num_lanes =
+                      (match Road.get_settings () with
+                      | RoadSettings r -> r.num_lanes
+                      | _ -> 2);
+                    max_capacity = cap;
+                  }))))
+    [ 5; 10; 20; 50 ];
+
+  menu
+
+let make_settings_menu_for_intersection () =
+  let menu = GMenu.menu () in
+
+  (* Stop type submenu *)
+  let stop_menu = GMenu.menu () in
+  let stop_item = GMenu.menu_item ~label:"Stop Type" ~packing:menu#append () in
+  stop_item#set_submenu stop_menu;
+
+  let mk_stop_item label stops =
+    let item = GMenu.menu_item ~label ~packing:stop_menu#append () in
+    ignore
+      (item#connect#activate ~callback:(fun () ->
+           Intersection.set_settings
+             (IntersectionSettings
+                {
+                  num_stops = stops;
+                  has_traffic_light =
+                    (match Intersection.get_settings () with
+                    | IntersectionSettings s -> s.has_traffic_light
+                    | _ -> false);
+                  stop_duration =
+                    (match Intersection.get_settings () with
+                    | IntersectionSettings s -> s.stop_duration
+                    | _ -> 3.0);
+                })))
+  in
+  mk_stop_item "2-way stop" 2;
+  mk_stop_item "4-way stop" 4;
+
+  (* Traffic light toggle *)
+  let light_item =
+    GMenu.menu_item ~label:"Toggle Traffic Light" ~packing:menu#append ()
+  in
+  ignore
+    (light_item#connect#activate ~callback:(fun () ->
+         let cur =
+           match Intersection.get_settings () with
+           | IntersectionSettings s -> s
+           | _ ->
+               { num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
+         in
+         Intersection.set_settings
+           (IntersectionSettings
+              { cur with has_traffic_light = not cur.has_traffic_light })));
+
+  menu
+
+let make_settings_menu_for_building () =
+  let menu = GMenu.menu () in
+  let item10 = GMenu.menu_item ~label:"Rate 10" ~packing:menu#append () in
+  let item20 = GMenu.menu_item ~label:"Rate 20" ~packing:menu#append () in
+  let item40 = GMenu.menu_item ~label:"Rate 40" ~packing:menu#append () in
+
+  let set r =
+    Building.set_settings (BuildingSettings { rate_of_traffic = r })
+  in
+  ignore (item10#connect#activate ~callback:(fun () -> set 10));
+  ignore (item20#connect#activate ~callback:(fun () -> set 20));
+  ignore (item40#connect#activate ~callback:(fun () -> set 40));
+
+  menu
+
 let () =
   (* Initialize GTK *)
   let _ = GMain.init () in
@@ -185,26 +343,53 @@ let () =
     b
   in
 
-  let _ =
+  let road_btn =
     add_button "Road" (fun () ->
         current_tool := Some ROAD;
         is_deleting := false;
         is_moving := false)
   in
+  road_btn#event#add [ `BUTTON_PRESS ];
 
-  let _ =
+  ignore
+    (road_btn#event#connect#button_press ~callback:(fun ev ->
+         if GdkEvent.Button.button ev = 3 then (
+           let menu = make_settings_menu_for_road () in
+           menu#popup ~button:3 ~time:(GdkEvent.Button.time ev);
+           true)
+         else false));
+
+  let int_btn =
     add_button "Intersection" (fun () ->
         current_tool := Some INTERSECTION;
         is_deleting := false;
         is_moving := false)
   in
+  int_btn#event#add [ `BUTTON_PRESS ];
 
-  let _ =
+  ignore
+    (int_btn#event#connect#button_press ~callback:(fun ev ->
+         if GdkEvent.Button.button ev = 3 then (
+           let menu = make_settings_menu_for_intersection () in
+           menu#popup ~button:3 ~time:(GdkEvent.Button.time ev);
+           true)
+         else false));
+
+  let bldg_btn =
     add_button "Building" (fun () ->
         current_tool := Some BUILDING;
         is_deleting := false;
         is_moving := false)
   in
+  bldg_btn#event#add [ `BUTTON_PRESS ];
+
+  ignore
+    (bldg_btn#event#connect#button_press ~callback:(fun ev ->
+         if GdkEvent.Button.button ev = 3 then (
+           let menu = make_settings_menu_for_building () in
+           menu#popup ~button:3 ~time:(GdkEvent.Button.time ev);
+           true)
+         else false));
 
   (* Move button *)
   let _ =
