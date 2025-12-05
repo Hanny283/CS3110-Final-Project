@@ -15,9 +15,7 @@ open Cs3110_final_project.Road
 open Cs3110_final_project.Intersection
 open Cs3110_final_project.Building
 
-(* ============================================================================
- * Settings Module Tests
- * ============================================================================ *)
+(*Setting test *)
 
 module Settings_tests = struct
   let test_building_settings_creation _ =
@@ -85,9 +83,7 @@ module Settings_tests = struct
          ]
 end
 
-(* ============================================================================
- * Tool_types Module Tests
- * ============================================================================ *)
+(* Tool_types Module Tests *)
 
 module Tool_types_tests = struct
   let test_tool_type_road _ = assert_equal Tool_types.ROAD Tool_types.ROAD
@@ -114,9 +110,7 @@ module Tool_types_tests = struct
          ]
 end
 
-(* ============================================================================
- * Road Module Tests
- * ============================================================================ *)
+(* Road Module test *)
 
 module Road_tests = struct
   let test_get_tool _ =
@@ -189,9 +183,7 @@ module Road_tests = struct
          ]
 end
 
-(* ============================================================================
- * Building Module Tests
- * ============================================================================ *)
+(* Building Module test *)
 
 module Building_tests = struct
   let test_get_tool _ =
@@ -370,9 +362,7 @@ module Building_tests = struct
          ]
 end
 
-(* ============================================================================
- * Intersection Module Tests
- * ============================================================================ *)
+(* Intersection Module test *)
 
 module Intersection_tests = struct
   let test_get_tool _ =
@@ -410,7 +400,6 @@ module Intersection_tests = struct
         assert_equal 4.5 s.stop_duration;
         ()
     | _ -> failwith "Expected IntersectionSettings");
-    (* Reset to default *)
     Intersection.set_settings
       (Settings.IntersectionSettings
          {
@@ -436,8 +425,6 @@ module Intersection_tests = struct
   let test_point_inside_boundary_left _ =
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
-    (* Intersection size is 60.0, so half_size is 30.0 *)
-    (* Left boundary: 100 - 30 = 70 *)
     let px, py = (70.0, 100.0) in
     let result = Intersection.point_inside ~x ~y ~px ~py settings in
     assert_bool "Point on left boundary should be inside" result
@@ -445,7 +432,6 @@ module Intersection_tests = struct
   let test_point_inside_boundary_right _ =
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
-    (* Right boundary: 100 + 30 = 130 *)
     let px, py = (130.0, 100.0) in
     let result = Intersection.point_inside ~x ~y ~px ~py settings in
     assert_bool "Point on right boundary should be inside" result
@@ -453,7 +439,6 @@ module Intersection_tests = struct
   let test_point_inside_boundary_top _ =
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
-    (* Top boundary: 100 - 30 = 70 *)
     let px, py = (100.0, 70.0) in
     let result = Intersection.point_inside ~x ~y ~px ~py settings in
     assert_bool "Point on top boundary should be inside" result
@@ -461,7 +446,6 @@ module Intersection_tests = struct
   let test_point_inside_boundary_bottom _ =
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
-    (* Bottom boundary: 100 + 30 = 130 *)
     let px, py = (100.0, 130.0) in
     let result = Intersection.point_inside ~x ~y ~px ~py settings in
     assert_bool "Point on bottom boundary should be inside" result
@@ -477,7 +461,6 @@ module Intersection_tests = struct
   let test_point_inside_outside_left _ =
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
-    (* Just outside left boundary: 100 - 30.1 = 69.9 *)
     let px, py = (69.9, 100.0) in
     let result = Intersection.point_inside ~x ~y ~px ~py settings in
     assert_bool "Point just outside left boundary should be outside"
@@ -486,7 +469,7 @@ module Intersection_tests = struct
   let test_point_inside_outside_right _ =
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
-    (* Just outside right boundary: 100 + 30.1 = 130.1 *)
+
     let px, py = (130.1, 100.0) in
     let result = Intersection.point_inside ~x ~y ~px ~py settings in
     assert_bool "Point just outside right boundary should be outside"
@@ -496,8 +479,6 @@ module Intersection_tests = struct
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
     let angle = 0.0 in
-    (* Button is at distance (60/2 + 20) = 50 from center, at angle 0 (to the right) *)
-    (* Button position: (100 + 50*cos(0), 100 + 50*sin(0)) = (150, 100) *)
     let button_x = 100.0 +. (50.0 *. cos 0.0) in
     let button_y = 100.0 +. (50.0 *. sin 0.0) in
     let result =
@@ -537,7 +518,6 @@ module Intersection_tests = struct
     let settings = Intersection.get_settings () in
     let x, y = (100, 100) in
     let angle = Float.pi /. 2.0 in
-    (* Button is now above the intersection (at angle pi/2) *)
     let button_x = 100.0 +. (50.0 *. cos angle) in
     let button_y = 100.0 +. (50.0 *. sin angle) in
     let result =
@@ -1244,9 +1224,7 @@ module Intersection_tests = struct
          ]
 end
 
-(* ============================================================================
- * Main Test Suite
- * ============================================================================ *)
+(* Main Test Suite *)
 
 let suite =
   "CS3110 Final Project Test Suite"

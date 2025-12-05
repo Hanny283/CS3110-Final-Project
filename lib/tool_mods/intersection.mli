@@ -1,4 +1,2 @@
-(* Interface for Intersection module - implements TOOL signature *)
-
+(* Interface for Intersection module*)
 module Intersection : Tool_types.TOOL
-

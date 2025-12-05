@@ -1,25 +1,26 @@
-(* Building module - implements TOOL signature *)
 open Tool_types
 open Settings
 
 module Building : TOOL = struct
   type t = tool
 
-  (* Default building settings *)
+  (*Default building settings aka rate of traffic *)
   let current_settings = ref { rate_of_traffic = 10 }
 
-  (* Size of the building *)
+  (* width of the building *)
   let building_width = 50.0
+
+  (* Height of the building *)
   let building_height = 60.0
 
-  (* Building objects encapsulate state for future simulation logic *)
-  class building_object ~(x : int) ~(y : int) ~(angle : float) ~(settings : building_settings) =
+  (* Building objects for future simulations *)
+  class building_object ~(x : int) ~(y : int) ~(angle : float)
+    ~(settings : building_settings) =
     object
       val x = x
       val y = y
       val angle = angle
       val settings = settings
-
       method x = x
       method y = y
       method angle = angle
@@ -27,11 +28,11 @@ module Building : TOOL = struct
       method settings = settings
     end
 
-  (* Fixed palette so all buildings share a consistent look *)
+  (* This sets the color of the building*)
   let body_color = (0.8, 0.8, 0.8)
   let accent_color = (0.6, 0.6, 0.6)
 
-  (* Draw simple windows *)
+  (**This draws the windows on the buildings*)
   let draw_windows cr ~x ~y ~w ~h =
     let cols = 2 in
     let rows = 3 in
@@ -41,7 +42,6 @@ module Building : TOOL = struct
     let cell_h = (h -. (2.0 *. margin_y)) /. float_of_int rows in
 
     Cairo.set_source_rgb cr 0.8 0.9 1.0;
-    (* light blue windows *)
     for i = 0 to cols - 1 do
       for j = 0 to rows - 1 do
         let wx = x -. (w /. 2.0) +. margin_x +. (float_of_int i *. cell_w) in
@@ -51,7 +51,8 @@ module Building : TOOL = struct
       done
     done
 
-  (* Draw the building on the Cairo context with rotation *)
+  (** This handles the logic for drawing a building when placing, moving, or
+      rotating it(when its not in a group).*)
   let draw cr ~x ~y ~angle settings =
     match settings with
     | BuildingSettings s ->
@@ -62,18 +63,15 @@ module Building : TOOL = struct
 
         Cairo.save cr;
 
-        (* Translate to center, rotate, then translate back *)
         Cairo.translate cr fx fy;
         Cairo.rotate cr angle;
         Cairo.translate cr (-.fx) (-.fy);
 
-        (* Draw main building rectangle *)
         let body_r, body_g, body_b = body_color in
         Cairo.set_source_rgb cr body_r body_g body_b;
         Cairo.rectangle cr (fx -. (bw /. 2.0)) (fy -. (bh /. 2.0)) ~w:bw ~h:bh;
         Cairo.fill cr;
 
-        (* Draw roof/accent as a top strip *)
         let accent_r, accent_g, accent_b = accent_color in
         Cairo.set_source_rgb cr accent_r accent_g accent_b;
         let roof_h = 10.0 in
@@ -83,17 +81,13 @@ module Building : TOOL = struct
           ~w:bw ~h:roof_h;
         Cairo.fill cr;
 
-        (* Draw simple windows to provide texture *)
         draw_windows cr ~x:fx ~y:fy ~w:bw ~h:(bh -. roof_h);
 
-        (* Draw outline around building *)
         Cairo.set_source_rgb cr 0.0 0.0 0.0;
         Cairo.set_line_width cr 2.0;
         Cairo.rectangle cr (fx -. (bw /. 2.0)) (fy -. (bh /. 2.0)) ~w:bw ~h:bh;
         Cairo.stroke cr;
 
-        (* Instantiate a building object with the provided settings.
-           We do not yet store it anywhere, but future features can hook into this. *)
         let (_ : building_object) =
           new building_object ~x ~y ~angle ~settings:s
         in
@@ -101,7 +95,9 @@ module Building : TOOL = struct
         Cairo.restore cr
     | _ -> failwith "Building.draw: expected BuildingSettings"
 
-  (* Erase a building from the Cairo context *)
+  (**Erase a building from the Cairo context although its never used it still
+     had to be defined for the sig match if you attempt to not define it you get
+     an error (i tried) *)
   let erase cr ~x ~y settings =
     match settings with
     | BuildingSettings _ ->
@@ -116,10 +112,10 @@ module Building : TOOL = struct
         Cairo.fill cr
     | _ -> failwith "Building.erase: expected BuildingSettings"
 
-  (* Get current settings *)
+  (*current settings of a building*)
   let get_settings () = BuildingSettings !current_settings
 
-  (* Update settings *)
+  (** Manages the updates of the building *)
   let set_settings new_settings =
     match new_settings with
     | BuildingSettings s -> current_settings := s
@@ -128,7 +124,8 @@ module Building : TOOL = struct
   (* Get the tool type *)
   let get_tool () = BUILDING
 
-  (* Draw selection highlight (yellow border) around the building *)
+  (**Highlights the building when selected to move or rotate(when its not in a
+     group).*)
   let draw_selection cr ~x ~y ~angle settings =
     match settings with
     | BuildingSettings _ ->
@@ -159,7 +156,8 @@ module Building : TOOL = struct
         Cairo.restore cr
     | _ -> failwith "Building.draw_selection: expected BuildingSettings"
 
-  (* Draw rotate button (circular arrow icon) on the right side *)
+  (**This draws the rotate button which you will see if you select move. its the
+     purple arrow*)
   let draw_rotate_button cr ~x ~y ~angle settings =
     match settings with
     | BuildingSettings _ ->
@@ -219,7 +217,7 @@ module Building : TOOL = struct
         Cairo.restore cr
     | _ -> failwith "Building.draw_rotate_button: expected BuildingSettings"
 
-  (* Check if a point is inside the building bounds *)
+  (**Makes sure that we are trying to building within the legal space*)
   let point_inside ~x ~y ~px ~py settings =
     match settings with
     | BuildingSettings _ ->
@@ -235,7 +233,7 @@ module Building : TOOL = struct
         && py <= fy +. half_h
     | _ -> false
 
-  (* Check if a point is on the rotate button *)
+  (*Check if a point is on the rotate button *)
   let point_on_rotate_button ~x ~y ~angle ~px ~py settings =
     match settings with
     | BuildingSettings _ ->

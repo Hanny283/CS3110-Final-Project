@@ -1,12 +1,8 @@
-(* Define Tool types and Modules *)
-
 type settings = Settings.settings
 type building_settings = Settings.building_settings
 type road_settings = Settings.road_settings
 type intersection_settings = Settings.intersection_settings
-
 type direction = North | South | East | West
-
 type tool = INTERSECTION | BUILDING | ROAD
 
 module type TOOL = sig
@@ -19,7 +15,7 @@ module type TOOL = sig
   val draw_selection :
     Cairo.context -> x:int -> y:int -> angle:float -> settings -> unit
 
-  (* Draw rotate button (circular arrow icon) on the right side of the tool *)
+  (*Draw rotate button (circular arrow icon) on the right side of the tool *)
   val draw_rotate_button :
     Cairo.context -> x:int -> y:int -> angle:float -> settings -> unit
 

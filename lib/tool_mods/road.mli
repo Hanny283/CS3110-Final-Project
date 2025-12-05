@@ -1,4 +1,3 @@
-(* Interface for Road module - implements TOOL signature *)
+(* Interface for Road module*)
 
 module Road : Tool_types.TOOL
-
