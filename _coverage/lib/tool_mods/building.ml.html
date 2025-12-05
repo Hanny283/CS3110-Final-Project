@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8"/>
     <title>building.ml &mdash; Coverage report</title>
-    <meta name="description" content="11.21% coverage in lib/tool_mods/building.ml">
+    <meta name="description" content="7.76% coverage in lib/tool_mods/building.ml">
     <link rel="stylesheet" href="../../coverage.css"/>
     <script src="../../highlight.pack.js"></script>
     <script>hljs.initHighlightingOnLoad();</script>
@@ -15,7 +15,7 @@
           <span class="dirname">lib/tool_mods/</span>building.ml
         </a>
       </h1>
-      <h2>11.21%</h2>
+      <h2>7.76%</h2>
     </div>
     <div id="navbar">
       <span class="unvisited" style="top:8.68%"></span>
@@ -59,6 +59,7 @@
       <span class="unvisited" style="top:43.77%"></span>
       <span class="unvisited" style="top:44.15%"></span>
       <span class="unvisited" style="top:47.55%"></span>
+      <span class="unvisited" style="top:48.68%"></span>
       <span class="unvisited" style="bottom:49.81%"></span>
       <span class="unvisited" style="bottom:49.43%"></span>
       <span class="unvisited" style="bottom:48.68%"></span>
@@ -106,6 +107,8 @@
       <span class="unvisited" style="bottom:18.11%"></span>
       <span class="unvisited" style="bottom:17.36%"></span>
       <span class="unvisited" style="bottom:16.98%"></span>
+      <span class="unvisited" style="bottom:11.70%"></span>
+      <span class="unvisited" style="bottom:11.32%"></span>
       <span class="unvisited" style="bottom:10.94%"></span>
       <span class="unvisited" style="bottom:9.43%"></span>
       <span class="unvisited" style="bottom:9.06%"></span>
@@ -115,6 +118,7 @@
       <span class="unvisited" style="bottom:6.04%"></span>
       <span class="unvisited" style="bottom:4.15%"></span>
       <span class="unvisited" style="bottom:3.77%"></span>
+      <span class="unvisited" style="bottom:2.26%"></span>
     </div>
     <div id="report">
       <div id="lines-layer">
@@ -247,7 +251,7 @@
 <a id="L126"></a><span class="unvisited"> </span>
 <a id="L127"></a><span > </span>
 <a id="L128"></a><span > </span>
-<a id="L129"></a><span class="visited"> </span>
+<a id="L129"></a><span class="unvisited"> </span>
 <a id="L130"></a><span > </span>
 <a id="L131"></a><span > </span>
 <a id="L132"></a><span > </span>
@@ -352,8 +356,8 @@
 <a id="L231"></a><span > </span>
 <a id="L232"></a><span > </span>
 <a id="L233"></a><span class="visited"> </span>
-<a id="L234"></a><span class="visited"> </span>
-<a id="L235"></a><span class="visited"> </span>
+<a id="L234"></a><span class="unvisited"> </span>
+<a id="L235"></a><span class="unvisited"> </span>
 <a id="L236"></a><span class="unvisited"> </span>
 <a id="L237"></a><span > </span>
 <a id="L238"></a><span > </span>
@@ -377,7 +381,7 @@
 <a id="L256"></a><span > </span>
 <a id="L257"></a><span > </span>
 <a id="L258"></a><span > </span>
-<a id="L259"></a><span class="visited"> </span>
+<a id="L259"></a><span class="unvisited"> </span>
 <a id="L260"></a><span > </span>
 <a id="L261"></a><span > </span>
 <a id="L262"></a><span > </span>
@@ -773,7 +777,7 @@ module Building : TOOL = struct
     | <span data-count="0">_</span> -&gt; failwith "Building.erase: expected BuildingSettings"
 
   (* Get current settings *)
-  let get_settings () = <span data-count="4">B</span>uildingSettings !current_settings
+  let get_settings () = <span data-count="2">B</span>uildingSettings !current_settings
 
   (* Update settings *)
   let set_settings new_settings =
@@ -782,7 +786,7 @@ module Building : TOOL = struct
     | <span data-count="0">_</span> -&gt; failwith "Building.set_settings: expected BuildingSettings"
 
   (* Get the tool type *)
-  let get_tool () = <span data-count="1">B</span>UILDING
+  let get_tool () = <span data-count="0">B</span>UILDING
 
   (* Draw selection highlight (yellow border) around the building *)
   let draw_selection cr ~x ~y ~angle settings =
@@ -877,18 +881,18 @@ module Building : TOOL = struct
 
   (* Check if a point is inside the building bounds *)
   let point_inside ~x ~y ~px ~py settings =
-    <span data-count="2">m</span>atch settings with
-    | <span data-count="2">B</span>uildingSettings _ -&gt;
+    <span data-count="1">m</span>atch settings with
+    | <span data-count="1">B</span>uildingSettings _ -&gt;
         let fx = float_of_int x in
-        <span data-count="2">l</span>et fy = float_of_int y in
-        <span data-count="2">l</span>et bw = building_width in
+        <span data-count="1">l</span>et fy = float_of_int y in
+        <span data-count="1">l</span>et bw = building_width in
         let bh = building_height in
         let half_w = bw /. 2.0 in
         let half_h = bh /. 2.0 in
         px &gt;= fx -. half_w
-        &amp;&amp; <span data-count="2">p</span>x &lt;= fx +. half_w
-        &amp;&amp; <span data-count="1">p</span>y &gt;= fy -. half_h
-        &amp;&amp; <span data-count="1">p</span>y &lt;= fy +. half_h
+        &amp;&amp; <span data-count="1">p</span>x &lt;= fx +. half_w
+        &amp;&amp; <span data-count="0">p</span>y &gt;= fy -. half_h
+        &amp;&amp; <span data-count="0">p</span>y &lt;= fy +. half_h
     | <span data-count="0">_</span> -&gt; false
 
   (* Check if a point is on the rotate button *)
@@ -912,7 +916,7 @@ module Building : TOOL = struct
 
   (* Calculate rotation angle from center based on mouse position *)
   let calculate_rotation ~cx ~cy ~mx ~my =
-    <span data-count="1">l</span>et dx = mx -. cx in
+    <span data-count="0">l</span>et dx = mx -. cx in
     let dy = my -. cy in
     atan2 dy dx
 
