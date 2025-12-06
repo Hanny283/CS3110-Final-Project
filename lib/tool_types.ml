@@ -6,7 +6,6 @@ type road_settings = Settings.road_settings
 type intersection_settings = Settings.intersection_settings
 
 type direction = North | South | East | West
-
 type tool = INTERSECTION | BUILDING | ROAD
 
 module type TOOL = sig

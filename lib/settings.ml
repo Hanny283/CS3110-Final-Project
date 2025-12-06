@@ -18,4 +18,3 @@ type settings =
   | BuildingSettings of building_settings
   | RoadSettings of road_settings
   | IntersectionSettings of intersection_settings
-
