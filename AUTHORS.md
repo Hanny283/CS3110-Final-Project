@@ -1,1 +1,3 @@
 Authors: Hansel Carmona (hec66), Vedanta Jain (vj88), Alexandre Saint-Sauveur (as3379), Steven Rodriguez (sbr93), Akash Prasad (ap2452)
+
+Gen AI: We utilized generative AI to assist in implementing the Cairo graphics library integration throughout our GUI, particularly in creating the drawing functions for roads, intersections, and buildings with proper rotation and transformation matrices. The AI helped us understand Cairo's API and implement features like dashed lines for lane dividers, stroke styles for selection highlights, and coordinate transformations for rotating objects around their centers. Additionally, we leveraged AI to develop a comprehensive test suite that achieved over 80% code coverage. 
