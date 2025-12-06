@@ -76,17 +76,17 @@ let () =
          List.iteri
            (fun idx intersection ->
              (* Draw the intersection *)
-             Intersection.Intersection.draw cr ~x:!(intersection.x)
+             Intersection.Intersection.draw ~cr ~x:!(intersection.x)
                ~y:!(intersection.y) ~angle:!(intersection.angle)
                intersection.settings;
 
              (* If selected, draw selection highlight and rotate button *)
              if !(state.selected) = Some idx then begin
-               Intersection.Intersection.draw_selection cr ~x:!(intersection.x)
+               Intersection.Intersection.draw_selection ~cr ~x:!(intersection.x)
                  ~y:!(intersection.y) ~angle:!(intersection.angle)
                  intersection.settings;
 
-               Intersection.Intersection.draw_rotate_button cr
+               Intersection.Intersection.draw_rotate_button ~cr
                  ~x:!(intersection.x) ~y:!(intersection.y)
                  ~angle:!(intersection.angle) intersection.settings
              end)
