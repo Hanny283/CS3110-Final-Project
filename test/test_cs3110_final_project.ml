@@ -281,7 +281,7 @@ module Building_tests = struct
     let s = Building.get_settings () in
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
     let cr = Cairo.create surface in
-    Building.draw cr ~x:100 ~y:100 ~angle:0.0 s
+    Building.draw ~cr ~x:100 ~y:100 ~angle:0.0 s
 
   let test_draw_wrong_settings _ =
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
@@ -291,13 +291,13 @@ module Building_tests = struct
         { num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
     in
     assert_raises (Failure "Building.draw: expected BuildingSettings")
-      (fun () -> Building.draw cr ~x:0 ~y:0 ~angle:0.0 wrong)
+      (fun () -> Building.draw ~cr ~x:0 ~y:0 ~angle:0.0 wrong)
 
   let test_draw_selection_ok _ =
     let s = Building.get_settings () in
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
     let cr = Cairo.create surface in
-    Building.draw_selection cr ~x:100 ~y:100 ~angle:0.0 s
+    Building.draw_selection ~cr ~x:100 ~y:100 ~angle:0.0 s
 
   let test_draw_selection_wrong_settings _ =
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
@@ -307,13 +307,13 @@ module Building_tests = struct
         { num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
     in
     assert_raises (Failure "Building.draw_selection: expected BuildingSettings")
-      (fun () -> Building.draw_selection cr ~x:0 ~y:0 ~angle:0.0 wrong)
+      (fun () -> Building.draw_selection ~cr ~x:0 ~y:0 ~angle:0.0 wrong)
 
   let test_draw_rotate_button_ok _ =
     let s = Building.get_settings () in
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
     let cr = Cairo.create surface in
-    Building.draw_rotate_button cr ~x:100 ~y:100 ~angle:0.0 s
+    Building.draw_rotate_button ~cr ~x:100 ~y:100 ~angle:0.0 s
 
   let test_draw_rotate_button_wrong_settings _ =
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
@@ -324,13 +324,13 @@ module Building_tests = struct
     in
     assert_raises
       (Failure "Building.draw_rotate_button: expected BuildingSettings")
-      (fun () -> Building.draw_rotate_button cr ~x:0 ~y:0 ~angle:0.0 wrong)
+      (fun () -> Building.draw_rotate_button ~cr ~x:0 ~y:0 ~angle:0.0 wrong)
 
   let test_erase_ok _ =
     let s = Building.get_settings () in
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
     let cr = Cairo.create surface in
-    Building.erase cr ~x:100 ~y:100 s
+    Building.erase ~cr ~x:100 ~y:100 s
 
   let test_erase_wrong_settings _ =
     let surface = Cairo.Image.create Cairo.Image.RGB24 ~w:200 ~h:200 in
@@ -340,7 +340,7 @@ module Building_tests = struct
         { num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
     in
     assert_raises (Failure "Building.erase: expected BuildingSettings")
-      (fun () -> Building.erase cr ~x:0 ~y:0 wrong)
+      (fun () -> Building.erase ~cr ~x:0 ~y:0 wrong)
 
   let suite =
     "Building Module"
@@ -725,7 +725,7 @@ module Intersection_tests = struct
     let cr = Cairo.create surface in
     let settings = Intersection.get_settings () in
     (* Draw intersection at center *)
-    Intersection.draw cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
     (* If no exception is raised, the function executed successfully *)
     Cairo.Surface.finish surface;
     assert_bool "Draw with stop signs should complete without error" true
@@ -742,7 +742,7 @@ module Intersection_tests = struct
     in
     let surface = create_test_surface () in
     let cr = Cairo.create surface in
-    Intersection.draw cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
     Cairo.Surface.finish surface;
     assert_bool "Draw with traffic light should complete without error" true
 
@@ -752,10 +752,10 @@ module Intersection_tests = struct
     let surface = create_test_surface () in
     let cr = Cairo.create surface in
     (* Test with different angles *)
-    Intersection.draw cr ~x:250 ~y:250 ~angle:0.0 settings;
-    Intersection.draw cr ~x:250 ~y:250 ~angle:(Float.pi /. 2.0) settings;
-    Intersection.draw cr ~x:250 ~y:250 ~angle:Float.pi settings;
-    Intersection.draw cr ~x:250 ~y:250 ~angle:(3.0 *. Float.pi /. 2.0) settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 2.0) settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:Float.pi settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:(3.0 *. Float.pi /. 2.0) settings;
     Cairo.Surface.finish surface;
     assert_bool "Draw with different rotations should complete" true
 
@@ -772,7 +772,7 @@ module Intersection_tests = struct
           stop_duration = 2.0;
         }
     in
-    Intersection.draw cr ~x:50 ~y:50 ~angle:0.0 settings0;
+           Intersection.draw ~cr ~x:50 ~y:50 ~angle:0.0 settings0;
     (* Test with 1 stop *)
     let settings1 =
       Settings.IntersectionSettings
@@ -782,7 +782,7 @@ module Intersection_tests = struct
           stop_duration = 2.0;
         }
     in
-    Intersection.draw cr ~x:100 ~y:100 ~angle:0.0 settings1;
+           Intersection.draw ~cr ~x:100 ~y:100 ~angle:0.0 settings1;
     (* Test with 2 stops *)
     let settings2 =
       Settings.IntersectionSettings
@@ -792,7 +792,7 @@ module Intersection_tests = struct
           stop_duration = 2.0;
         }
     in
-    Intersection.draw cr ~x:200 ~y:200 ~angle:0.0 settings2;
+           Intersection.draw ~cr ~x:200 ~y:200 ~angle:0.0 settings2;
     (* Test with 3 stops *)
     let settings3 =
       Settings.IntersectionSettings
@@ -802,7 +802,7 @@ module Intersection_tests = struct
           stop_duration = 2.0;
         }
     in
-    Intersection.draw cr ~x:250 ~y:250 ~angle:0.0 settings3;
+           Intersection.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings3;
     (* Test with 4 stops *)
     let settings4 =
       Settings.IntersectionSettings
@@ -812,7 +812,7 @@ module Intersection_tests = struct
           stop_duration = 2.0;
         }
     in
-    Intersection.draw cr ~x:300 ~y:300 ~angle:0.0 settings4;
+           Intersection.draw ~cr ~x:300 ~y:300 ~angle:0.0 settings4;
     (* Test with more than 4 stops (should cap at 3 in loop: min(num_stops-1, 3)) *)
     let settings5 =
       Settings.IntersectionSettings
@@ -822,7 +822,7 @@ module Intersection_tests = struct
           stop_duration = 2.0;
         }
     in
-    Intersection.draw cr ~x:350 ~y:350 ~angle:0.0 settings5;
+           Intersection.draw ~cr ~x:350 ~y:350 ~angle:0.0 settings5;
     Cairo.Surface.finish surface;
     assert_bool "Draw with different num_stops should complete" true
 
@@ -832,8 +832,8 @@ module Intersection_tests = struct
     let cr = Cairo.create surface in
     let settings = Intersection.get_settings () in
     (* First draw, then erase *)
-    Intersection.draw cr ~x:250 ~y:250 ~angle:0.0 settings;
-    Intersection.erase cr ~x:250 ~y:250 settings;
+    Intersection.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Intersection.erase ~cr ~x:250 ~y:250 settings;
     Cairo.Surface.finish surface;
     assert_bool "Erase should complete without error" true
 
@@ -842,10 +842,10 @@ module Intersection_tests = struct
     let surface = create_test_surface () in
     let cr = Cairo.create surface in
     let settings = Intersection.get_settings () in
-    Intersection.draw_selection cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Intersection.draw_selection ~cr ~x:250 ~y:250 ~angle:0.0 settings;
     (* Test with different angles *)
-    Intersection.draw_selection cr ~x:250 ~y:250 ~angle:(Float.pi /. 4.0)
-      settings;
+    Intersection.draw_selection ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 4.0)
+       settings;
     Cairo.Surface.finish surface;
     assert_bool "Draw selection should complete without error" true
 
@@ -854,11 +854,11 @@ module Intersection_tests = struct
     let surface = create_test_surface () in
     let cr = Cairo.create surface in
     let settings = Intersection.get_settings () in
-    Intersection.draw_rotate_button cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Intersection.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:0.0 settings;
     (* Test with different angles *)
-    Intersection.draw_rotate_button cr ~x:250 ~y:250 ~angle:(Float.pi /. 2.0)
-      settings;
-    Intersection.draw_rotate_button cr ~x:250 ~y:250 ~angle:Float.pi settings;
+    Intersection.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 2.0)
+       settings;
+    Intersection.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:Float.pi settings;
     Cairo.Surface.finish surface;
     assert_bool "Draw rotate button should complete without error" true
 
@@ -871,7 +871,7 @@ module Intersection_tests = struct
         { Settings.speed_limit = 35; num_lanes = 2; max_capacity = 100 }
     in
     try
-      Intersection.draw cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
+      Intersection.draw ~cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
       assert_failure "Should have raised an exception"
     with Failure msg ->
       assert_bool "Should fail with expected message"
@@ -885,7 +885,7 @@ module Intersection_tests = struct
       Settings.BuildingSettings { Settings.rate_of_traffic = 10 }
     in
     try
-      Intersection.erase cr ~x:250 ~y:250 wrong_settings;
+      Intersection.erase ~cr ~x:250 ~y:250 wrong_settings;
       assert_failure "Should have raised an exception"
     with Failure msg ->
       assert_bool "Should fail with expected message"
@@ -900,7 +900,7 @@ module Intersection_tests = struct
         { Settings.speed_limit = 35; num_lanes = 2; max_capacity = 100 }
     in
     try
-      Intersection.draw_selection cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
+      Intersection.draw_selection ~cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
       assert_failure "Should have raised an exception"
     with Failure msg ->
       assert_bool "Should fail with expected message"
@@ -914,7 +914,7 @@ module Intersection_tests = struct
       Settings.BuildingSettings { Settings.rate_of_traffic = 10 }
     in
     try
-      Intersection.draw_rotate_button cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
+      Intersection.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
       assert_failure "Should have raised an exception"
     with Failure msg ->
       assert_bool "Should fail with expected message"
@@ -1070,11 +1070,11 @@ module Intersection_tests = struct
     let surface = create_test_surface () in
     let cr = Cairo.create surface in
     (* Test at different angles to ensure all traffic light code is executed *)
-    Intersection.draw cr ~x:100 ~y:100 ~angle:0.0 settings;
-    Intersection.draw cr ~x:200 ~y:200 ~angle:(Float.pi /. 4.0) settings;
-    Intersection.draw cr ~x:300 ~y:300 ~angle:(Float.pi /. 2.0) settings;
-    Intersection.draw cr ~x:400 ~y:400 ~angle:Float.pi settings;
-    Intersection.draw cr ~x:50 ~y:50 ~angle:(3.0 *. Float.pi /. 2.0) settings;
+    Intersection.draw ~cr ~x:100 ~y:100 ~angle:0.0 settings;
+    Intersection.draw ~cr ~x:200 ~y:200 ~angle:(Float.pi /. 4.0) settings;
+    Intersection.draw ~cr ~x:300 ~y:300 ~angle:(Float.pi /. 2.0) settings;
+    Intersection.draw ~cr ~x:400 ~y:400 ~angle:Float.pi settings;
+    Intersection.draw ~cr ~x:50 ~y:50 ~angle:(3.0 *. Float.pi /. 2.0) settings;
     Cairo.Surface.finish surface;
     assert_bool "Draw traffic light at various angles should complete" true
 
@@ -1101,7 +1101,7 @@ module Intersection_tests = struct
     in
     List.iter
       (fun angle ->
-        Intersection.draw_rotate_button cr ~x:250 ~y:250 ~angle settings)
+        Intersection.draw_rotate_button ~cr ~x:250 ~y:250 ~angle settings)
       angles;
     Cairo.Surface.finish surface;
     assert_bool "Draw rotate button at many angles should complete" true
@@ -1126,7 +1126,7 @@ module Intersection_tests = struct
     in
     List.iter
       (fun angle ->
-        Intersection.draw_selection cr ~x:250 ~y:250 ~angle settings)
+        Intersection.draw_selection ~cr ~x:250 ~y:250 ~angle settings)
       angles;
     Cairo.Surface.finish surface;
     assert_bool "Draw selection at many angles should complete" true
@@ -1164,10 +1164,10 @@ module Intersection_tests = struct
     let cr = Cairo.create surface in
     let settings = Intersection.get_settings () in
     (* Erase at various positions *)
-    Intersection.erase cr ~x:50 ~y:50 settings;
-    Intersection.erase cr ~x:100 ~y:100 settings;
-    Intersection.erase cr ~x:200 ~y:200 settings;
-    Intersection.erase cr ~x:450 ~y:450 settings;
+    Intersection.erase ~cr ~x:50 ~y:50 settings;
+    Intersection.erase ~cr ~x:100 ~y:100 settings;
+    Intersection.erase ~cr ~x:200 ~y:200 settings;
+    Intersection.erase ~cr ~x:450 ~y:450 settings;
     Cairo.Surface.finish surface;
     assert_bool "Erase at various positions should complete" true
 
