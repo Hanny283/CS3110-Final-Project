@@ -176,6 +176,355 @@ module Road_tests = struct
     (* Should be approximately 0 (pointing right/east) *)
     assert_bool "Angle should be close to 0" (abs_float angle < 0.01)
 
+  (* Helper function to create a Cairo image surface for testing *)
+  let create_test_surface () =
+    Cairo.Image.create Cairo.Image.ARGB32 ~w:500 ~h:500
+
+  (* Test draw function with default settings (2 lanes) *)
+  let test_draw_default _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let settings = Road.get_settings () in
+    Road.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw with default settings should complete" true
+
+  (* Test draw function with 1 lane *)
+  let test_draw_one_lane _ =
+    let settings =
+      Settings.RoadSettings
+        { Settings.speed_limit = 25; num_lanes = 1; max_capacity = 50 }
+    in
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    Road.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw with 1 lane should complete" true
+
+  (* Test draw function with multiple lanes (3, 4, 5) *)
+  let test_draw_multiple_lanes _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    (* 3 lanes *)
+    let settings3 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 45; num_lanes = 3; max_capacity = 150 }
+    in
+    Road.draw ~cr ~x:100 ~y:100 ~angle:0.0 settings3;
+    (* 4 lanes *)
+    let settings4 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 55; num_lanes = 4; max_capacity = 200 }
+    in
+    Road.draw ~cr ~x:200 ~y:200 ~angle:0.0 settings4;
+    (* 5 lanes *)
+    let settings5 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 65; num_lanes = 5; max_capacity = 250 }
+    in
+    Road.draw ~cr ~x:300 ~y:300 ~angle:0.0 settings5;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw with multiple lanes should complete" true
+
+  (* Test draw function with different rotation angles *)
+  let test_draw_with_rotation _ =
+    let settings = Road.get_settings () in
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    Road.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Road.draw ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 4.0) settings;
+    Road.draw ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 2.0) settings;
+    Road.draw ~cr ~x:250 ~y:250 ~angle:Float.pi settings;
+    Road.draw ~cr ~x:250 ~y:250 ~angle:(3.0 *. Float.pi /. 2.0) settings;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw with various rotations should complete" true
+
+  (* Test erase function *)
+  let test_erase _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let settings = Road.get_settings () in
+    (* First draw, then erase *)
+    Road.draw ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Road.erase ~cr ~x:250 ~y:250 settings;
+    Cairo.Surface.finish surface;
+    assert_bool "Erase should complete without error" true
+
+  (* Test erase with different lane counts *)
+  let test_erase_various_lanes _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let settings1 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 25; num_lanes = 1; max_capacity = 50 }
+    in
+    Road.erase ~cr ~x:100 ~y:100 settings1;
+    let settings3 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 45; num_lanes = 3; max_capacity = 150 }
+    in
+    Road.erase ~cr ~x:200 ~y:200 settings3;
+    Cairo.Surface.finish surface;
+    assert_bool "Erase with various lanes should complete" true
+
+  (* Test draw_selection function *)
+  let test_draw_selection _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let settings = Road.get_settings () in
+    Road.draw_selection ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Road.draw_selection ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 4.0) settings;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw selection should complete without error" true
+
+  (* Test draw_selection with different lane counts *)
+  let test_draw_selection_various_lanes _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let settings1 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 25; num_lanes = 1; max_capacity = 50 }
+    in
+    Road.draw_selection ~cr ~x:100 ~y:100 ~angle:0.0 settings1;
+    let settings4 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 55; num_lanes = 4; max_capacity = 200 }
+    in
+    Road.draw_selection ~cr ~x:200 ~y:200 ~angle:(Float.pi /. 2.0) settings4;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw selection with various lanes should complete" true
+
+  (* Test draw_rotate_button function *)
+  let test_draw_rotate_button _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let settings = Road.get_settings () in
+    Road.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:0.0 settings;
+    Road.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:(Float.pi /. 2.0) settings;
+    Road.draw_rotate_button ~cr ~x:250 ~y:250 ~angle:Float.pi settings;
+    Cairo.Surface.finish surface;
+    assert_bool "Draw rotate button should complete without error" true
+
+  (* Test point_inside boundary conditions - left/right *)
+  let test_point_inside_boundaries_horizontal _ =
+    let settings = Road.get_settings () in
+    let x, y = 100, 100 in
+    (* Road length is 120.0, half_len is 60.0 *)
+    (* Left boundary: 100 - 60 = 40 *)
+    let result1 = Road.point_inside ~x ~y ~px:40.0 ~py:100.0 settings in
+    assert_bool "Point on left boundary should be inside" result1;
+    (* Right boundary: 100 + 60 = 160 *)
+    let result2 = Road.point_inside ~x ~y ~px:160.0 ~py:100.0 settings in
+    assert_bool "Point on right boundary should be inside" result2;
+    (* Just outside left *)
+    let result3 = Road.point_inside ~x ~y ~px:39.9 ~py:100.0 settings in
+    assert_bool "Point just outside left should be outside" (not result3);
+    (* Just outside right *)
+    let result4 = Road.point_inside ~x ~y ~px:160.1 ~py:100.0 settings in
+    assert_bool "Point just outside right should be outside" (not result4)
+
+  (* Test point_inside boundary conditions - top/bottom *)
+  let test_point_inside_boundaries_vertical _ =
+    let settings = Road.get_settings () in
+    let x, y = 100, 100 in
+    (* 2 lanes, width = 24.0, half_wid = 12.0 *)
+    (* Top boundary: 100 - 12 = 88 *)
+    let result1 = Road.point_inside ~x ~y ~px:100.0 ~py:88.0 settings in
+    assert_bool "Point on top boundary should be inside" result1;
+    (* Bottom boundary: 100 + 12 = 112 *)
+    let result2 = Road.point_inside ~x ~y ~px:100.0 ~py:112.0 settings in
+    assert_bool "Point on bottom boundary should be inside" result2;
+    (* Just outside top *)
+    let result3 = Road.point_inside ~x ~y ~px:100.0 ~py:87.9 settings in
+    assert_bool "Point just outside top should be outside" (not result3);
+    (* Just outside bottom *)
+    let result4 = Road.point_inside ~x ~y ~px:100.0 ~py:112.1 settings in
+    assert_bool "Point just outside bottom should be outside" (not result4)
+
+  (* Test point_inside with different lane counts *)
+  let test_point_inside_various_lanes _ =
+    let x, y = 100, 100 in
+    let px, py = 100.0, 100.0 in
+    (* 1 lane: width = 12, half_wid = 6 *)
+    let settings1 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 25; num_lanes = 1; max_capacity = 50 }
+    in
+    let result1 = Road.point_inside ~x ~y ~px ~py settings1 in
+    assert_bool "Point inside should work with 1 lane" result1;
+    (* 4 lanes: width = 48, half_wid = 24 *)
+    let settings4 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 55; num_lanes = 4; max_capacity = 200 }
+    in
+    let result4 = Road.point_inside ~x ~y ~px ~py settings4 in
+    assert_bool "Point inside should work with 4 lanes" result4
+
+  (* Test point_on_rotate_button at center *)
+  let test_point_on_rotate_button_center _ =
+    let settings = Road.get_settings () in
+    let x, y = 100, 100 in
+    let angle = 0.0 in
+    (* Button is at distance (60 + 25) = 85 from center, at angle 0 (to the right) *)
+    (* Button center: (185, 100), radius = 12 *)
+    let button_x = 185.0 in
+    let button_y = 100.0 in
+    let result =
+      Road.point_on_rotate_button ~x ~y ~angle ~px:button_x ~py:button_y settings
+    in
+    assert_bool "Point at button center should be on button" result
+
+  (* Test point_on_rotate_button at edge and outside *)
+  let test_point_on_rotate_button_edge _ =
+    let settings = Road.get_settings () in
+    let x, y = 100, 100 in
+    let angle = 0.0 in
+    let button_x = 185.0 in
+    (* Just inside radius (12) *)
+    let result1 =
+      Road.point_on_rotate_button ~x ~y ~angle ~px:button_x ~py:111.9 settings
+    in
+    assert_bool "Point just inside button should be on button" result1;
+    (* Just outside radius *)
+    let result2 =
+      Road.point_on_rotate_button ~x ~y ~angle ~px:button_x ~py:112.1 settings
+    in
+    assert_bool "Point just outside button should not be on button" (not result2)
+
+  (* Test point_on_rotate_button at different angles *)
+  let test_point_on_rotate_button_various_angles _ =
+    let settings = Road.get_settings () in
+    let x, y = 100, 100 in
+    (* Test at 90 degrees *)
+    let angle1 = Float.pi /. 2.0 in
+    let button_dist = 60.0 +. 25.0 in
+    let button_x1 = 100.0 +. (button_dist *. cos angle1) in
+    let button_y1 = 100.0 +. (button_dist *. sin angle1) in
+    let result1 =
+      Road.point_on_rotate_button ~x ~y ~angle:angle1 ~px:button_x1 ~py:button_y1
+        settings
+    in
+    assert_bool "Point at button center at 90 degrees should be on button" result1;
+    (* Test at 180 degrees *)
+    let angle2 = Float.pi in
+    let button_x2 = 100.0 +. (button_dist *. cos angle2) in
+    let button_y2 = 100.0 +. (button_dist *. sin angle2) in
+    let result2 =
+      Road.point_on_rotate_button ~x ~y ~angle:angle2 ~px:button_x2 ~py:button_y2
+        settings
+    in
+    assert_bool "Point at button center at 180 degrees should be on button" result2
+
+  (* Test calculate_rotation comprehensive *)
+  let test_calculate_rotation_comprehensive _ =
+    let cx, cy = 100.0, 100.0 in
+    (* Right *)
+    let angle1 = Road.calculate_rotation ~cx ~cy ~mx:150.0 ~my:100.0 in
+    assert_bool "Right should be ~0" (abs_float angle1 < 0.1);
+    (* Down *)
+    let angle2 = Road.calculate_rotation ~cx ~cy ~mx:100.0 ~my:150.0 in
+    assert_bool "Down should be ~pi/2"
+      (abs_float (angle2 -. (Float.pi /. 2.0)) < 0.1);
+    (* Left *)
+    let angle3 = Road.calculate_rotation ~cx ~cy ~mx:50.0 ~my:100.0 in
+    assert_bool "Left should be ~pi or ~-pi"
+      (abs_float (abs_float angle3 -. Float.pi) < 0.1);
+    (* Up *)
+    let angle4 = Road.calculate_rotation ~cx ~cy ~mx:100.0 ~my:50.0 in
+    assert_bool "Up should be ~-pi/2"
+      (abs_float (angle4 +. (Float.pi /. 2.0)) < 0.1)
+
+  (* Test error case: draw with wrong settings type *)
+  let test_draw_error_wrong_settings _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let wrong_settings =
+      Settings.IntersectionSettings
+        { Settings.num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
+    in
+    try
+      Road.draw ~cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
+      failwith "Should have raised an exception"
+    with Failure msg ->
+      assert_bool "Should fail with expected message"
+        (String.contains msg 'R' || String.contains msg 'r')
+
+  (* Test error case: erase with wrong settings type *)
+  let test_erase_error_wrong_settings _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let wrong_settings =
+      Settings.BuildingSettings { Settings.rate_of_traffic = 10 }
+    in
+    try
+      Road.erase ~cr ~x:250 ~y:250 wrong_settings;
+      failwith "Should have raised an exception"
+    with Failure msg ->
+      assert_bool "Should fail with expected message"
+        (String.contains msg 'R' || String.contains msg 'r')
+
+  (* Test error case: draw_selection with wrong settings type *)
+  let test_draw_selection_error_wrong_settings _ =
+    let surface = create_test_surface () in
+    let cr = Cairo.create surface in
+    let wrong_settings =
+      Settings.BuildingSettings { Settings.rate_of_traffic = 10 }
+    in
+    try
+      Road.draw_selection ~cr ~x:250 ~y:250 ~angle:0.0 wrong_settings;
+      failwith "Should have raised an exception"
+    with Failure msg ->
+      assert_bool "Should fail with expected message"
+        (String.contains msg 'R' || String.contains msg 'r')
+
+  (* Test error case: set_settings with wrong settings type *)
+  let test_set_settings_error_wrong_settings _ =
+    let wrong_settings =
+      Settings.IntersectionSettings
+        { Settings.num_stops = 4; has_traffic_light = false; stop_duration = 3.0 }
+    in
+    try
+      Road.set_settings wrong_settings;
+      failwith "Should have raised an exception"
+    with Failure msg ->
+      assert_bool "Should fail with expected message"
+        (String.contains msg 'R' || String.contains msg 'r')
+
+  (* Test error case: point_inside with wrong settings type *)
+  let test_point_inside_wrong_settings _ =
+    let wrong_settings =
+      Settings.BuildingSettings { Settings.rate_of_traffic = 10 }
+    in
+    let x, y = 100, 100 in
+    let px, py = 100.0, 100.0 in
+    let result = Road.point_inside ~x ~y ~px ~py wrong_settings in
+    assert_bool "Should return false for wrong settings type" (not result)
+
+  (* Test settings with various speed limits *)
+  let test_settings_various_speed_limits _ =
+    let settings1 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 15; num_lanes = 1; max_capacity = 30 }
+    in
+    Road.set_settings settings1;
+    let retrieved1 = Road.get_settings () in
+    (match retrieved1 with
+    | Settings.RoadSettings s -> assert_equal 15 s.speed_limit
+    | _ -> failwith "Expected RoadSettings");
+    let settings2 =
+      Settings.RoadSettings
+        { Settings.speed_limit = 75; num_lanes = 4; max_capacity = 300 }
+    in
+    Road.set_settings settings2;
+    let retrieved2 = Road.get_settings () in
+    (match retrieved2 with
+    | Settings.RoadSettings s -> assert_equal 75 s.speed_limit
+    | _ -> failwith "Expected RoadSettings");
+    (* Reset to default *)
+    Road.set_settings
+      (Settings.RoadSettings
+         { Settings.speed_limit = 35; num_lanes = 2; max_capacity = 100 })
+
   let suite =
     "Road Module"
     >::: [
@@ -186,6 +535,34 @@ module Road_tests = struct
            "point_inside_center" >:: test_point_inside_center;
            "point_inside_outside" >:: test_point_inside_outside;
            "calculate_rotation" >:: test_calculate_rotation;
+           "draw_default" >:: test_draw_default;
+           "draw_one_lane" >:: test_draw_one_lane;
+           "draw_multiple_lanes" >:: test_draw_multiple_lanes;
+           "draw_with_rotation" >:: test_draw_with_rotation;
+           "erase" >:: test_erase;
+           "erase_various_lanes" >:: test_erase_various_lanes;
+           "draw_selection" >:: test_draw_selection;
+           "draw_selection_various_lanes" >:: test_draw_selection_various_lanes;
+           "draw_rotate_button" >:: test_draw_rotate_button;
+           "point_inside_boundaries_horizontal"
+           >:: test_point_inside_boundaries_horizontal;
+           "point_inside_boundaries_vertical"
+           >:: test_point_inside_boundaries_vertical;
+           "point_inside_various_lanes" >:: test_point_inside_various_lanes;
+           "point_on_rotate_button_center" >:: test_point_on_rotate_button_center;
+           "point_on_rotate_button_edge" >:: test_point_on_rotate_button_edge;
+           "point_on_rotate_button_various_angles"
+           >:: test_point_on_rotate_button_various_angles;
+           "calculate_rotation_comprehensive"
+           >:: test_calculate_rotation_comprehensive;
+           "draw_error_wrong_settings" >:: test_draw_error_wrong_settings;
+           "erase_error_wrong_settings" >:: test_erase_error_wrong_settings;
+           "draw_selection_error_wrong_settings"
+           >:: test_draw_selection_error_wrong_settings;
+           "set_settings_error_wrong_settings"
+           >:: test_set_settings_error_wrong_settings;
+           "point_inside_wrong_settings" >:: test_point_inside_wrong_settings;
+           "settings_various_speed_limits" >:: test_settings_various_speed_limits;
          ]
 end
 
