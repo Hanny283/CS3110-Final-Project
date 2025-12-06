@@ -33,12 +33,11 @@ module Road : TOOL = struct
   let current_settings =
     ref { speed_limit = 35; num_lanes = 2; max_capacity = 100 }
 
-  (* Width per lane instead of constant width *)
   let width_per_lane = 12.0
   let road_length = 120.0
 
-  (* Draw a road *)
-  let draw cr ~x ~y ~angle settings =
+  (* Draw road *)
+  let draw ~cr ~x ~y ~angle settings =
     match settings with
     | RoadSettings s ->
         let lanes = max 1 s.num_lanes in
@@ -98,18 +97,16 @@ module Road : TOOL = struct
         ()
     | _ -> failwith "Road.draw: expected RoadSettings"
 
-  (* Erase the road *)
-  let erase cr ~x ~y settings =
+  (* Erase *)
+  let erase ~cr ~x ~y settings =
     match settings with
     | RoadSettings s ->
         let lanes = max 1 s.num_lanes in
         let road_width = width_per_lane *. float lanes in
-
         let fx = float_of_int x in
         let fy = float_of_int y in
 
         Cairo.set_source_rgb cr 1.0 1.0 1.0;
-
         Cairo.rectangle cr
           (fx -. (road_length /. 2.0) -. 10.0)
           (fy -. (road_width /. 2.0) -. 10.0)
@@ -117,24 +114,20 @@ module Road : TOOL = struct
         Cairo.fill cr
     | _ -> failwith "Road.erase: expected RoadSettings"
 
-  (* Get current settings *)
   let get_settings () = RoadSettings !current_settings
 
-  (* Update settings *)
   let set_settings = function
     | RoadSettings s -> current_settings := s
     | _ -> failwith "Road.set_settings: expected RoadSettings"
 
-  (* Tool type *)
   let get_tool () = ROAD
 
-  (* Draw selection rectangle *)
-  let draw_selection cr ~x ~y ~angle settings =
+  (* Selection outline *)
+  let draw_selection ~cr ~x ~y ~angle settings =
     match settings with
     | RoadSettings s ->
         let lanes = max 1 s.num_lanes in
         let road_width = width_per_lane *. float lanes in
-
         let fx = float_of_int x in
         let fy = float_of_int y in
 
@@ -160,8 +153,8 @@ module Road : TOOL = struct
         Cairo.restore cr
     | _ -> failwith "Road.draw_selection: expected RoadSettings"
 
-  (* Draw rotate button *)
-  let draw_rotate_button cr ~x ~y ~angle _settings =
+  (* Rotate button *)
+  let draw_rotate_button ~cr ~x ~y ~angle _settings =
     let fx = float_of_int x in
     let fy = float_of_int y in
     let half_len = road_length /. 2.0 in
@@ -173,48 +166,46 @@ module Road : TOOL = struct
 
     Cairo.save cr;
 
-    (* outer purple circle *)
     Cairo.set_source_rgb cr 0.5 0.2 0.8;
-    Cairo.arc cr bx by ~r:button_radius ~a1:0.0 ~a2:(2.0 *. Float.pi);
+    Cairo.arc cr bx by ~r:button_radius ~a1:0.0 ~a2:(2. *. Float.pi);
     Cairo.fill cr;
 
-    (* inner white circle *)
-    Cairo.set_source_rgb cr 1.0 1.0 1.0;
-    Cairo.arc cr bx by ~r:(button_radius -. 2.0) ~a1:0.0 ~a2:(2.0 *. Float.pi);
+    Cairo.set_source_rgb cr 1. 1. 1.;
+    Cairo.arc cr bx by ~r:(button_radius -. 2.) ~a1:0.0 ~a2:(2. *. Float.pi);
     Cairo.fill cr;
 
-    (* circular arrow icon *)
     Cairo.set_source_rgb cr 0.5 0.2 0.8;
-    Cairo.set_line_width cr 2.0;
-    Cairo.arc cr bx by ~r:(button_radius -. 4.0) ~a1:(-0.5 *. Float.pi)
+    Cairo.set_line_width cr 2.;
+    Cairo.arc cr bx by ~r:(button_radius -. 4.) ~a1:(-0.5 *. Float.pi)
       ~a2:(1.5 *. Float.pi);
     Cairo.stroke cr;
 
-    (* arrow *)
     let ang = 1.5 *. Float.pi in
-    let tipx = bx +. ((button_radius -. 4.0) *. cos ang) in
-    let tipy = by +. ((button_radius -. 4.0) *. sin ang) in
+    let tipx = bx +. ((button_radius -. 4.) *. cos ang) in
+    let tipy = by +. ((button_radius -. 4.) *. sin ang) in
 
     Cairo.move_to cr tipx tipy;
     Cairo.line_to cr
-      (tipx -. (4.0 *. cos (ang -. 0.5)))
-      (tipy -. (4.0 *. sin (ang -. 0.5)));
+      (tipx -. (4. *. cos (ang -. 0.5)))
+      (tipy -. (4. *. sin (ang -. 0.5)));
     Cairo.stroke cr;
 
     Cairo.move_to cr tipx tipy;
     Cairo.line_to cr
-      (tipx -. (4.0 *. cos (ang +. 0.5)))
-      (tipy -. (4.0 *. sin (ang +. 0.5)));
+      (tipx -. (4. *. cos (ang +. 0.5)))
+      (tipy -. (4. *. sin (ang +. 0.5)));
     Cairo.stroke cr;
 
     Cairo.restore cr
 
-  (* Point inside road (axis-aligned in its local coordinates) *)
+  (* Hit test *)
   let point_inside ~x ~y ~px ~py settings =
     match settings with
     | RoadSettings s ->
         let lanes = max 1 s.num_lanes in
         let road_width = width_per_lane *. float lanes in
+        let half_len = road_length /. 2.0 in
+        let half_wid = road_width /. 2.0 in
 
         let fx = float_of_int x in
         let fy = float_of_int y in
@@ -222,13 +213,10 @@ module Road : TOOL = struct
         let dx = px -. fx in
         let dy = py -. fy in
 
-        let half_len = road_length /. 2.0 in
-        let half_wid = road_width /. 2.0 in
-
         dx >= -.half_len && dx <= half_len && dy >= -.half_wid && dy <= half_wid
     | _ -> false
 
-  (* Point on rotate button *)
+  (* Rotate button hit test *)
   let point_on_rotate_button ~x ~y ~angle ~px ~py _settings =
     let fx = float_of_int x in
     let fy = float_of_int y in
@@ -243,9 +231,6 @@ module Road : TOOL = struct
     let dy = py -. by in
     sqrt ((dx *. dx) +. (dy *. dy)) <= button_radius
 
-  (* Rotation angle from center *)
   let calculate_rotation ~cx ~cy ~mx ~my = atan2 (my -. cy) (mx -. cx)
-
-  (* Name *)
   let get_name () = "Road"
 end

@@ -10,7 +10,7 @@ type drawn_object = {
   x : int;
   y : int;
   angle : float;
-  settings : settings; (* NEW: per-object settings *)
+  settings : settings; (* per-object settings *)
   ungrouped : bool;
 }
 
@@ -99,7 +99,14 @@ let snap_new_object ~(others : drawn_object list) ~(tool_type : tool) ~(x : int)
   match tool_type with
   | ROAD -> (
       let obj =
-        { tool_type = ROAD; x; y; angle; settings = Road.get_settings (); ungrouped = false }
+        {
+          tool_type = ROAD;
+          x;
+          y;
+          angle;
+          settings = Road.get_settings ();
+          ungrouped = false;
+        }
       in
       let (sx, sy), (ex, ey) = road_endpoints obj in
       let best = ref (None : (float * (float * float) * snap_target) option) in
@@ -310,6 +317,7 @@ let make_settings_menu_for_building () =
   ignore (item40#connect#activate ~callback:(fun () -> set 40));
 
   menu
+
 (* ---------- Grouping helpers (based on snapping) ---------- *)
 
 (* Check if two objects are "connected" via snapping, ignoring ungrouped ones. *)
@@ -382,22 +390,21 @@ let () =
   let _label = GMisc.label ~text:"Drawing Tools" ~packing:toolbar#add () in
 
   let current_tool = ref None in
-  let objects = ref [] in
-  let selected_object = ref None in
+  let objects : drawn_object list ref = ref [] in
+  let selected_object : int option ref = ref None in
   (* Currently selected object index *)
-  let selected_group = ref [] in
+  let selected_group : int list ref = ref [] in
   (* Indices of the currently selected group *)
 
   (* Grouping data:
      - group_ids.(i) = group id (an int) for object index i, or -1 if ungrouped
      - groups_tbl : group id -> list of indices in that group
      - ungrouped_list : list of indices of objects with ungrouped = true *)
-  let group_ids = ref [||] in
+  let group_ids : int array ref = ref [||] in
   let groups_tbl : (int, int list) Hashtbl.t = Hashtbl.create 32 in
-  let ungrouped_list = ref [] in
+  let ungrouped_list : int list ref = ref [] in
 
-  (* Recompute all groups + ungrouped indices from !objects using DFS and is_connected.
-     This replaces the old BFS-based compute_group. *)
+  (* Recompute all groups + ungrouped indices from !objects using DFS and is_connected. *)
   let recompute_groups () =
     let objs = !objects in
     let n = List.length objs in
@@ -427,8 +434,7 @@ let () =
     ungrouped_list := List.rev !ungrouped_acc
   in
 
-  (* Get the group (list of indices) for a given object index.
-     If the object is ungrouped or grouping info is missing, returns [idx]. *)
+  (* Get the group (list of indices) for a given object index. *)
   let get_group_for_index idx =
     let objs = !objects in
     let len = Array.length !group_ids in
@@ -446,10 +452,8 @@ let () =
   let is_moving = ref false in
   let is_deleting = ref false in
   let is_rotating = ref false in
-  (* Whether we're rotating an object *)
   let is_ungrouping = ref false in
-  (* Whether we're in ungroup mode *)
-  let drag_offset = ref None in
+  let drag_offset : (float * float) option ref = ref None in
   let button_pressed = ref false in
 
   let add_button label callback =
@@ -458,7 +462,7 @@ let () =
     b
   in
 
-  let _ =
+  let road_btn =
     add_button "Road" (fun () ->
         current_tool := Some ROAD;
         is_deleting := false;
@@ -526,13 +530,24 @@ let () =
         is_ungrouping := true)
   in
 
+  (* Delete button *)
+  let _ =
+    add_button "Delete" (fun () ->
+        current_tool := None;
+        is_deleting := true;
+        is_moving := false;
+        is_ungrouping := false;
+        selected_object := None;
+        selected_group := [])
+  in
+
   (* Drawing area *)
   let drawing_area =
     GMisc.drawing_area ~packing:(vbox#pack ~expand:true ~fill:true) ()
   in
   drawing_area#misc#set_size_request ~width:800 ~height:550 ();
 
-  let surface = ref None in
+  let surface : Cairo.Surface.t option ref = ref None in
 
   let init_surface width height =
     let s = Cairo.Image.(create ARGB32 ~w:width ~h:height) in
@@ -555,12 +570,13 @@ let () =
           (fun obj ->
             match obj.tool_type with
             | ROAD ->
-                Road.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle obj.settings
+                Road.draw ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle obj.settings
             | INTERSECTION ->
-                Intersection.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                Intersection.draw ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                   obj.settings
             | BUILDING ->
-                Building.draw cr ~x:obj.x ~y:obj.y ~angle:obj.angle obj.settings)
+                Building.draw ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  obj.settings)
           !objects;
 
         (* Draw selection highlights for whole group *)
@@ -573,55 +589,43 @@ let () =
                   let obj = List.nth !objects idx in
                   match obj.tool_type with
                   | ROAD ->
-                      Road.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
-                        (Road.get_settings ())
+                      Road.draw_selection ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                        obj.settings
                   | INTERSECTION ->
-                      Intersection.draw_selection cr ~x:obj.x ~y:obj.y
-                        ~angle:obj.angle
-                        (Intersection.get_settings ())
+                      Intersection.draw_selection ~cr ~x:obj.x ~y:obj.y
+                        ~angle:obj.angle obj.settings
                   | BUILDING ->
-                      Building.draw_selection cr ~x:obj.x ~y:obj.y
-                        ~angle:obj.angle (Building.get_settings ())
+                      Building.draw_selection ~cr ~x:obj.x ~y:obj.y
+                        ~angle:obj.angle obj.settings
                 with _ -> ())
               group_indices);
 
-        (* Draw rotate button only for the explicitly selected object *)
+        (* Draw rotate button only for explicitly selected object *)
         (match !selected_object with
         | Some idx -> (
             try
               let obj = List.nth !objects idx in
               match obj.tool_type with
               | ROAD ->
-                  Road.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  Road.draw_selection ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                     obj.settings;
-                  Road.draw_rotate_button cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  Road.draw_rotate_button ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                     obj.settings
               | INTERSECTION ->
-                  Intersection.draw_selection cr ~x:obj.x ~y:obj.y
+                  Intersection.draw_selection ~cr ~x:obj.x ~y:obj.y
                     ~angle:obj.angle obj.settings;
-                  Intersection.draw_rotate_button cr ~x:obj.x ~y:obj.y
+                  Intersection.draw_rotate_button ~cr ~x:obj.x ~y:obj.y
                     ~angle:obj.angle obj.settings
               | BUILDING ->
-                  Building.draw_selection cr ~x:obj.x ~y:obj.y ~angle:obj.angle
+                  Building.draw_selection ~cr ~x:obj.x ~y:obj.y ~angle:obj.angle
                     obj.settings;
-                  Building.draw_rotate_button cr ~x:obj.x ~y:obj.y
+                  Building.draw_rotate_button ~cr ~x:obj.x ~y:obj.y
                     ~angle:obj.angle obj.settings
             with _ -> ())
         | None -> ());
 
         drawing_area#misc#queue_draw ()
     | None -> ()
-  in
-
-  (* Delete button *)
-  let _ =
-    add_button "Delete" (fun () ->
-        current_tool := None;
-        is_deleting := true;
-        is_moving := false;
-        is_ungrouping := false;
-        selected_object := None;
-        selected_group := [])
   in
 
   (* Draw handler *)
@@ -638,6 +642,7 @@ let () =
   let configure_callback _ =
     let alloc = drawing_area#misc#allocation in
     ignore (init_surface alloc.Gtk.width alloc.Gtk.height);
+    redraw_all ();
     true
   in
 
@@ -658,48 +663,27 @@ let () =
           let snapped_x, snapped_y, snapped_angle =
             snap_new_object ~others:!objects ~tool_type ~x ~y ~angle
           in
-          (match tool_type with
-          | ROAD ->
-              objects :=
-                {
-                  tool_type = ROAD;
-                  x = snapped_x;
-                  y = snapped_y;
-                  angle = snapped_angle;
-                  settings = Road.get_settings ();
-                  ungrouped = false;
-                }
-                :: !objects
-          | INTERSECTION ->
-              objects :=
-                {
-                  tool_type = INTERSECTION;
-                  x = snapped_x;
-                  y = snapped_y;
-                  angle = snapped_angle;
-                  settings = Intersection.get_settings ();
-                  ungrouped = false;
-                }
-                :: !objects
-          | BUILDING ->
-              objects :=
-                {
-                  tool_type = BUILDING;
-                  x = snapped_x;
-                  y = snapped_y;
-                  angle = snapped_angle;
-                  settings = Building.get_settings ();
-                  ungrouped = false;
-                }
-                :: !objects);
-          (* Recompute grouping after adding a new object *)
+          objects :=
+            {
+              tool_type;
+              x = snapped_x;
+              y = snapped_y;
+              angle = snapped_angle;
+              settings =
+                (match tool_type with
+                | ROAD -> Road.get_settings ()
+                | INTERSECTION -> Intersection.get_settings ()
+                | BUILDING -> Building.get_settings ());
+              ungrouped = false;
+            }
+            :: !objects;
           recompute_groups ();
-          (* Clear selection when drawing new objects *)
           selected_object := None;
           selected_group := [];
           redraw_all ();
           true
       | None ->
+          (* DELETE MODE *)
           if !is_deleting then (
             let clicked_object = ref None in
 
@@ -721,115 +705,35 @@ let () =
                       if
                         Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
                           obj.settings
-                then clicked_object := Some idx)
-            !objects;
+                      then clicked_object := Some idx)
+              !objects;
 
             (match !clicked_object with
             | Some idx ->
-                objects := List.filteri (fun i _ -> i <> idx) !objects;
-                
-                (* Check if it's a building and get settings *)
                 let objs = !objects in
                 let group = get_group_for_index idx in
                 let obj = List.nth objs idx in
-                
-                (* Delete based on grouping AND settings *)
+
                 let to_delete =
                   if List.length group > 1 && not obj.ungrouped then group
-                  else 
-                    match obj.tool_type with
-                    | BUILDING ->
-                        (* Also delete buildings with same settings *)
-                        List.filter (fun i ->
-                          i = idx || 
-                          (let other = List.nth objs i in
-                           other.tool_type = BUILDING && 
-                           other.settings = obj.settings)
-                        ) (List.init (List.length objs) (fun i -> i))
-                    | _ -> [ idx ]
+                  else [ idx ]
                 in
-                
+
                 objects :=
-                  List.filteri (fun i _ -> not (List.mem i to_delete)) !objects;
+                  List.filteri (fun i _ -> not (List.mem i to_delete)) objs;
+                recompute_groups ();
+                selected_object := None;
+                selected_group := [];
                 redraw_all ()
             | None -> ());
-
-            true)
+            true (* MOVE MODE *))
           else if !is_moving then (
-          let clicked_object = ref None in
-          let clicked_rotate_button = ref false in
+            let clicked_object = ref None in
 
-          (* Check each object (from front to back) *)
-          List.iteri
-            (fun idx obj ->
-              if !clicked_object = None then (
-                (* Check if clicked on rotate button *)
-                if !selected_object = Some idx then
-                  match obj.tool_type with
-                  | ROAD ->
-                      if
-                        Road.point_on_rotate_button ~x:obj.x ~y:obj.y
-                          ~angle:obj.angle ~px:x_f ~py:y_f obj.settings
-                      then (
-                        clicked_object := Some idx;
-                        is_rotating := true)
-                  | INTERSECTION ->
-                      if
-                        Intersection.point_on_rotate_button ~x:obj.x ~y:obj.y
-                          ~angle:obj.angle ~px:x_f ~py:y_f obj.settings
-                      then (
-                        clicked_object := Some idx;
-                        is_rotating := true)
-                  | BUILDING ->
-                      if
-                        Building.point_on_rotate_button ~x:obj.x ~y:obj.y
-                          ~angle:obj.angle ~px:x_f ~py:y_f obj.settings
-                      then (
-                        clicked_object := Some idx;
-                        is_rotating := true));
-
-                (* If not rotate button, check object hitbox *)
-                if !clicked_object = None then
-                  match obj.tool_type with
-                  | ROAD ->
-                      if
-                        Road.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                          obj.settings
-                      then (
-                        clicked_object := Some idx;
-                        is_rotating := false)
-                  | INTERSECTION ->
-                      if
-                        Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                          obj.settings
-                      then (
-                        clicked_object := Some idx;
-                        is_rotating := false)
-                  | BUILDING ->
-                      if
-                        Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f ~py:y_f
-                          obj.settings
-                      then (
-                        clicked_object := Some idx;
-                        is_rotating := false)))
-            !objects;
-
-          (* After finding clicked object, handle grouping *)
-          (match !clicked_object with
-          | Some idx ->
-              let obj = List.nth !objects idx in
-              if obj.ungrouped then (
-                (* Move/rotate this object independently *)
-                selected_object := Some idx;
-                selected_group := [ idx ])
-              else (
-                (* Move/rotate the entire group *)
-                let group = get_group_for_index idx in
-                selected_object := Some idx;
-                selected_group := group);
-              redraw_all ()
-          | None -> ());
-          true)
+            List.iteri
+              (fun idx obj ->
+                if !clicked_object = None then (
+                  (* Check rotate button for selected object *)
                   (if !selected_object = Some idx then
                      match obj.tool_type with
                      | ROAD ->
@@ -854,7 +758,7 @@ let () =
                            clicked_object := Some idx;
                            is_rotating := true));
 
-                  (* If not rotate button, check object hitbox *)
+                  (* Hitbox check *)
                   if !clicked_object = None then
                     match obj.tool_type with
                     | ROAD ->
@@ -864,9 +768,10 @@ let () =
                         then (
                           clicked_object := Some idx;
                           is_rotating := false;
-                          let fx = float_of_int obj.x in
-                          let fy = float_of_int obj.y in
-                          drag_offset := Some (x_f -. fx, y_f -. fy))
+                          drag_offset :=
+                            Some
+                              ( x_f -. float_of_int obj.x,
+                                y_f -. float_of_int obj.y ))
                     | INTERSECTION ->
                         if
                           Intersection.point_inside ~x:obj.x ~y:obj.y ~px:x_f
@@ -874,9 +779,10 @@ let () =
                         then (
                           clicked_object := Some idx;
                           is_rotating := false;
-                          let fx = float_of_int obj.x in
-                          let fy = float_of_int obj.y in
-                          drag_offset := Some (x_f -. fx, y_f -. fy))
+                          drag_offset :=
+                            Some
+                              ( x_f -. float_of_int obj.x,
+                                y_f -. float_of_int obj.y ))
                     | BUILDING ->
                         if
                           Building.point_inside ~x:obj.x ~y:obj.y ~px:x_f
@@ -884,24 +790,29 @@ let () =
                         then (
                           clicked_object := Some idx;
                           is_rotating := false;
-                          let fx = float_of_int obj.x in
-                          let fy = float_of_int obj.y in
-                          drag_offset := Some (x_f -. fx, y_f -. fy))))
+                          drag_offset :=
+                            Some
+                              ( x_f -. float_of_int obj.x,
+                                y_f -. float_of_int obj.y ))))
               !objects;
 
             (match !clicked_object with
             | Some idx ->
-              selected_object := Some idx;
-              selected_group := get_group_for_index idx
+                let obj = List.nth !objects idx in
+                if obj.ungrouped then (
+                  selected_object := Some idx;
+                  selected_group := [ idx ])
+                else (
+                  selected_object := Some idx;
+                  selected_group := get_group_for_index idx);
+                redraw_all ()
             | None ->
-              selected_object := None;
-              selected_group := [];
-              is_rotating := false;
-              drag_offset := None);
-
-            redraw_all ();
+                selected_object := None;
+                selected_group := [];
+                is_rotating := false;
+                drag_offset := None);
             true)
-            else false)
+          else false)
     else false
   in
 
@@ -916,49 +827,49 @@ let () =
       in
 
       try
-                let objs = !objects in
-                let obj = List.nth objs selected_idx in
-                let group = !selected_group in
+        let objs = !objects in
+        let obj = List.nth objs selected_idx in
+        let group = !selected_group in
 
-                (if !is_rotating then
-                  (* Rotating: calculate angle from center to mouse position *)
-                  let cx = float_of_int obj.x in
-                  let cy = float_of_int obj.y in
-                  let new_angle =
-                    match obj.tool_type with
-                    | ROAD -> Road.calculate_rotation ~cx ~cy ~mx:x ~my:y
-                    | INTERSECTION ->
-                        Intersection.calculate_rotation ~cx ~cy ~mx:x ~my:y
-                    | BUILDING -> Building.calculate_rotation ~cx ~cy ~mx:x ~my:y
-                  in
-                  (* Only rotate the selected object, not the whole group *)
-                  objects :=
-                    List.mapi
-                      (fun i o ->
-                        if i = selected_idx then { o with angle = new_angle } else o)
-                      objs
-                else
-                  (* Dragging: move object (and its group) by mouse offset *)
-                  match !drag_offset with
-                  | Some (offset_x, offset_y) ->
-                      let new_x = int_of_float (x -. offset_x) in
-                      let new_y = int_of_float (y -. offset_y) in
-                      let dx = new_x - obj.x in
-                      let dy = new_y - obj.y in
-                      objects :=
-                        List.mapi
-                          (fun i o ->
-                            if
-                              (group <> [] && List.mem i group)
-                              || (group = [] && i = selected_idx)
-                            then { o with x = o.x + dx; y = o.y + dy }
-                            else o)
-                          objs
-                  | None -> ());
+        (if !is_rotating then
+           (* Rotating: calculate angle from center to mouse position *)
+           let cx = float_of_int obj.x in
+           let cy = float_of_int obj.y in
+           let new_angle =
+             match obj.tool_type with
+             | ROAD -> Road.calculate_rotation ~cx ~cy ~mx:x ~my:y
+             | INTERSECTION ->
+                 Intersection.calculate_rotation ~cx ~cy ~mx:x ~my:y
+             | BUILDING -> Building.calculate_rotation ~cx ~cy ~mx:x ~my:y
+           in
+           (* Only rotate the selected object, not the whole group *)
+           objects :=
+             List.mapi
+               (fun i o ->
+                 if i = selected_idx then { o with angle = new_angle } else o)
+               objs
+         else
+           (* Dragging: move object (and its group) by mouse offset *)
+           match !drag_offset with
+           | Some (offset_x, offset_y) ->
+               let new_x = int_of_float (x -. offset_x) in
+               let new_y = int_of_float (y -. offset_y) in
+               let dx = new_x - obj.x in
+               let dy = new_y - obj.y in
+               objects :=
+                 List.mapi
+                   (fun i o ->
+                     if
+                       (group <> [] && List.mem i group)
+                       || (group = [] && i = selected_idx)
+                     then { o with x = o.x + dx; y = o.y + dy }
+                     else o)
+                   objs
+           | None -> ());
 
-                redraw_all ();
-                true
-              with _ -> false
+        redraw_all ();
+        true
+      with _ -> false
     else false
   in
 
@@ -1014,8 +925,6 @@ let () =
           redraw_all ()
         with _ -> ())
     | _ -> ());
-    drag_offset := None;
-    false
     drag_offset := None;
     false
   in
