@@ -1,4 +1,4 @@
-(* Define Tool types and Modules *)
+(* Interface for Tool types and module signatures *)
 
 type settings = Settings.settings
 type building_settings = Settings.building_settings
@@ -6,6 +6,7 @@ type road_settings = Settings.road_settings
 type intersection_settings = Settings.intersection_settings
 
 type direction = North | South | East | West
+
 type tool = INTERSECTION | BUILDING | ROAD
 
 module type TOOL = sig
@@ -47,3 +48,4 @@ module type TOOL = sig
   (* Get the tool name for display in toolbar *)
   val get_name : unit -> string
 end
+
